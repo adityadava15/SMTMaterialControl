@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual Material Input - SMT Material Control</title>
+    <link rel="icon" href="/img/SMT.png?v=5" type="image/png">
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+
+<body>
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                    <img src="/img/SMT.png" alt="SMT Logo" style="height: 40px; width: auto;">
+                    <div style="text-align: center;">
+                        <h2 style="font-size: 16px; margin: 0; font-weight: 700;">SMT Material</h2>
+                        <p style="font-size: 11px; margin: 0; opacity: 0.8;">Control System</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="nav-menu">
+                <a href="/dashboard.html" class="nav-item">
+                    <span class="nav-icon">&#128202;</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/material-input-scan.html" class="nav-item">
+                    <span class="nav-icon">&#128229;</span>
+                    <span>Material Input</span>
+                </a>
+                <a href="/material-input.html" class="nav-item active">
+                    <span class="nav-icon">&#9997;&#65039;</span>
+                    <span>Manual Material Input</span>
+                </a>
+                <div class="nav-dropdown" id="navOutputDropdown">
+                    <div class="nav-item nav-dropdown-toggle" id="navOutputToggle" onclick="toggleNavDropdown('navOutputDropdown')">
+                        <div class="nav-dropdown-label">
+                            <span class="nav-icon">&#128228;</span>
+                            <span>Material Output</span>
+                        </div>
+                        <span class="nav-dropdown-arrow">&#9662;</span>
+                    </div>
+                    <div class="nav-submenu">
+                        <a href="/material-output.html" class="nav-subitem" id="navSubOutputStok">
+                            <span class="nav-subitem-icon">&#128230;</span>
+                            <span>Output Stok</span>
+                        </a>
+                        <a href="/material-output-machine.html" class="nav-subitem" id="navSubOutputMesin">
+                            <span class="nav-subitem-icon">&#9881;&#65039;</span>
+                            <span>Output Mesin</span>
+                        </a>
+                    </div>
+                </div>
+                <a href="/records.html" class="nav-item">
+                    <span class="nav-icon">&#128203;</span>
+                    <span>Records</span>
+                </a>
+                <a href="/master-materials.html" class="nav-item superadmin-nav-item" id="navMasterMaterials" style="display: none;">
+                    <span class="nav-icon">&#128196;</span>
+                    <span>Master Material</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <div class="top-bar">
+                <button class="toggle-btn" onclick="toggleSidebar()">&#9776;</button>
+                <div class="user-dropdown">
+                    <div class="user-info" onclick="toggleUserDropdown()">
+                        <span id="welcomeText">Manual Material Input</span>
+                        <span class="user-role" id="userRole">User</span>
+                        <span style="font-size: 10px;">&#9660;</span>
+                    </div>
+                    <div class="dropdown-content" id="userDropdownContent">
+                        <a href="/profile.html">&#128100; My Profile</a>
+                        <a href="#" onclick="logout()">&#128682; Logout</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-area">
+                <h1 style="margin-bottom: 24px; font-size: 28px;">&#128229; Input Material Masuk</h1>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Form Input Material Baru</h2>
+                    </div>
+
+                    <form id="materialInputForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="materialId">Material ID *</label>
+                                <input type="text" id="materialId" class="form-input" placeholder="Masukkan ID Material"
+                                    required autofocus>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="materialName">Material Name (Master)</label>
+                                <input type="text" id="materialName" class="form-input"
+                                    placeholder="Otomatis dari master data material" readonly
+                                    style="background: #f9fafb;">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="quantityPreset">Quick Quantity</label>
+                                <select id="quantityPreset" class="select-input">
+                                    <option value="">-- Pilih Preset --</option>
+                                    <option value="1000">1,000 pcs</option>
+                                    <option value="2000">2,000 pcs</option>
+                                    <option value="3000">3,000 pcs</option>
+                                    <option value="5000">5,000 pcs</option>
+                                    <option value="custom">Custom</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="materialQuantity">Quantity (pcs) *</label>
+                                <input type="number" id="materialQuantity" class="form-input"
+                                    placeholder="Masukkan jumlah" min="1" required>
+                            </div>
+                        </div>
+
+                        <div id="successMessage" class="alert alert-success" style="display: none;"></div>
+                        <div id="errorMessage" class="alert alert-error" style="display: none;"></div>
+
+                        <div style="display: flex; gap: 12px; margin-top: 24px;">
+                            <button type="submit" class="btn btn-primary" id="submitBtn">&#9989; Input Material</button>
+                            <button type="button" class="btn btn-secondary" onclick="resetForm()">&#128260; Reset Form</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Panduan</h2>
+                    </div>
+                    <ul style="line-height: 1.8; color: var(--light-text);">
+                        <li>Scan Material ID menggunakan barcode scanner atau ketik manual</li>
+                        <li>Nama material otomatis diambil dari master data</li>
+                        <li>Pilih quick quantity atau masukkan custom quantity</li>
+                        <li>Jika nama tidak ditemukan, upload/update master data material dulu</li>
+                        <li>Jika material ID sudah ada, quantity akan ditambahkan otomatis</li>
+                        <li>Semua input akan dicatat dalam transaction history</li>
+                    </ul>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/utils.js"></script>
+    <script src="/js/session-timeout.js"></script>
+    <script src="/js/material-input.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Output Stok - SMT Material Control</title>
+    <link rel="icon" href="/img/SMT.png?v=5" type="image/png">
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+
+<body>
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                    <img src="/img/SMT.png" alt="SMT Logo" style="height: 40px; width: auto;">
+                    <div style="text-align: center;">
+                        <h2 style="font-size: 16px; margin: 0; font-weight: 700;">SMT Material</h2>
+                        <p style="font-size: 11px; margin: 0; opacity: 0.8;">Control System</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="nav-menu">
+                <a href="/dashboard.html" class="nav-item">
+                    <span class="nav-icon">&#128202;</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/material-input-scan.html" class="nav-item">
+                    <span class="nav-icon">&#128229;</span>
+                    <span>Material Input</span>
+                </a>
+                <a href="/material-input.html" class="nav-item">
+                    <span class="nav-icon">&#9997;&#65039;</span>
+                    <span>Manual Material Input</span>
+                </a>
+                <div class="nav-dropdown open" id="navOutputDropdown">
+                    <div class="nav-item nav-dropdown-toggle active" id="navOutputToggle" onclick="toggleNavDropdown('navOutputDropdown')">
+                        <div class="nav-dropdown-label">
+                            <span class="nav-icon">&#128228;</span>
+                            <span>Material Output</span>
+                        </div>
+                        <span class="nav-dropdown-arrow">&#9662;</span>
+                    </div>
+                    <div class="nav-submenu">
+                        <a href="/material-output.html" class="nav-subitem active" id="navSubOutputStok">
+                            <span class="nav-subitem-icon">&#128230;</span>
+                            <span>Output Stok</span>
+                        </a>
+                        <a href="/material-output-machine.html" class="nav-subitem" id="navSubOutputMesin">
+                            <span class="nav-subitem-icon">&#9881;&#65039;</span>
+                            <span>Output Mesin</span>
+                        </a>
+                    </div>
+                </div>
+                <a href="/records.html" class="nav-item">
+                    <span class="nav-icon">&#128203;</span>
+                    <span>Records</span>
+                </a>
+                <a href="/master-materials.html" class="nav-item superadmin-nav-item" id="navMasterMaterials" style="display: none;">
+                    <span class="nav-icon">&#128196;</span>
+                    <span>Master Material</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <div class="top-bar">
+                <button class="toggle-btn" onclick="toggleSidebar()">&#9776;</button>
+                <div class="user-dropdown">
+                    <div class="user-info" onclick="toggleUserDropdown()">
+                        <span id="welcomeText">Output Stok</span>
+                        <span class="user-role" id="userRole">User</span>
+                        <span style="font-size: 10px;">&#9660;</span>
+                    </div>
+                    <div class="dropdown-content" id="userDropdownContent">
+                        <a href="/profile.html">&#128100; My Profile</a>
+                        <a href="#" onclick="logout()">&#128682; Logout</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-area">
+                <h1 style="margin-bottom: 24px; font-size: 28px;">&#128228; Output Stok Material (Penggunaan)</h1>
+
+                <!-- Scanner Section -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Scan Material</h2>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-row"
+                            style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 20px; border-radius: 12px; margin-bottom: 0; display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap;">
+                            <div class="form-group" style="margin: 0; flex: 0 0 170px;">
+                                <label for="outputProductType"
+                                    style="color: white; font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">Type Produk</label>
+                                <select id="outputProductType" class="select-input" required
+                                    style="height: 52px; border: 3px solid #fbbf24;">
+                                    <option value="">Pilih Type</option>
+                                    <option value="HXE128-KP">HXE128-KP</option>
+                                    <option value="HXE12FR">HXE12FR</option>
+                                    <option value="HXE310">HXE310</option>
+                                    <option value="HXE310-KP">HXE310-KP</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin: 0; flex: 0 0 220px;">
+                                <label for="outputOperator"
+                                    style="color: white; font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">Nama Operator</label>
+                                <select id="outputOperator" class="select-input" required
+                                    style="height: 52px; border: 3px solid #fbbf24;">
+                                    <option value="">Pilih Operator</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin: 0; flex: 1; min-width: 260px;">
+                                <label for="scanInput"
+                                    style="color: white; font-weight: 600; font-size: 16px; display: flex; align-items: center; gap: 8px;">&#128247; Scan QR Code Material (Output)</label>
+                                <input type="text" id="scanInput" class="form-input scanner-input"
+                                    placeholder="&#128269; Fokus di sini lalu scan QR code..."
+                                    style="background: white; border: 3px solid #fbbf24; font-size: 16px; padding: 14px;"
+                                    autofocus>
+                                <small style="color: #ecfdf5; display: block; margin-top: 8px; font-size: 13px;">&#128161; Scan QR code untuk menambahkan ke daftar penggunaan</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="scanError" class="alert alert-error" style="display: none;"></div>
+                </div>
+
+                <!-- Usage Confirmation List -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Daftar Penggunaan Material</h2>
+                        <span id="itemCount" style="color: var(--light-text); font-size: 14px;">0 item</span>
+                    </div>
+
+                    <div id="usageListContainer">
+                        <div class="usage-list" id="usageList">
+                            <p style="text-align: center; color: var(--light-text); padding: 40px;">
+                                Scan material untuk menambahkan ke daftar penggunaan
+                            </p>
+                        </div>
+                    </div>
+
+                    <div id="confirmError" class="alert alert-error" style="display: none;"></div>
+                    <div id="confirmSuccess" class="alert alert-success" style="display: none;"></div>
+
+                    <div style="display: flex; gap: 12px; margin-top: 20px;">
+                        <button class="btn btn-primary" id="confirmBtn" onclick="confirmUsage()" disabled>&#9989; Konfirmasi Penggunaan</button>
+                        <button class="btn btn-danger" onclick="clearUsageList()">&#128465;&#65039; Hapus Semua</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">History Output Material</h2>
+                        <button class="btn btn-secondary btn-sm" type="button" onclick="loadOutputHistory()">
+                            Refresh
+                        </button>
+                    </div>
+
+                    <div class="search-bar" style="margin-bottom: 12px;">
+                        <input type="datetime-local" id="outputHistoryStartDateTime" class="form-input"
+                            style="width: 220px;" title="Dari tanggal & waktu">
+                        <input type="datetime-local" id="outputHistoryEndDateTime" class="form-input"
+                            style="width: 220px;" title="Sampai tanggal & waktu">
+                        <button class="btn btn-primary btn-sm" type="button" onclick="applyOutputHistoryFilters()">
+                            &#128269; Filter
+                        </button>
+                        <button class="btn btn-secondary btn-sm" type="button" onclick="resetOutputHistoryFilters()">
+                            Reset
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Material ID</th>
+                                    <th>Material Name</th>
+                                    <th>Type Produk</th>
+                                    <th>Operator</th>
+                                    <th>Qty</th>
+                                    <th>Tanggal & Waktu</th>
+                                </tr>
+                            </thead>
+                            <tbody id="outputHistoryBody">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; padding: 24px;">
+                                        <div class="spinner"></div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Panduan</h2>
+                    </div>
+                    <ul style="line-height: 1.8; color: var(--light-text);">
+                        <li>Scan Material ID yang akan digunakan</li>
+                        <li>Pilih type produk sebelum konfirmasi penggunaan</li>
+                        <li>Material akan masuk ke daftar penggunaan</li>
+                        <li>Tentukan quantity penggunaan (custom atau preset)</li>
+                        <li>Klik "Konfirmasi Penggunaan" untuk mengurangi stok</li>
+                        <li>Sistem akan otomatis mengurangi quantity dari inventory</li>
+                    </ul>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/utils.js"></script>
+    <script src="/js/session-timeout.js"></script>
+    <script src="/js/material-output.js"></script>
+</body>
+
+</html>

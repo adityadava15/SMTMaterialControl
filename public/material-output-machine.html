@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Output Mesin - SMT Material Control</title>
+    <link rel="icon" href="/img/SMT.png?v=5" type="image/png">
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .lan-banner {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0369a1 100%);
+            border-radius: 12px;
+            padding: 22px 24px;
+            color: white;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .lan-header-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .lan-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: #6ee7b7;
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .pulse-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            animation: pulse-ring 1.8s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+
+        .lan-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.25);
+            padding: 14px 18px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .lan-info-item {
+            font-size: 12px;
+        }
+
+        .lan-info-label {
+            color: #94a3b8;
+            margin-bottom: 3px;
+            font-weight: 500;
+        }
+
+        .lan-info-value {
+            color: #38bdf8;
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            font-size: 13px;
+            word-break: break-all;
+        }
+
+        /* Watcher Card Styles */
+        .watcher-box {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+        }
+
+        .watcher-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px;
+            margin-top: 12px;
+            font-size: 13px;
+        }
+
+        .watcher-item {
+            background: white;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .watcher-item-label {
+            color: var(--light-text);
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .watcher-item-val {
+            font-weight: 700;
+            color: var(--dark-text);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+
+        .modal-box {
+            background: white;
+            border-radius: 14px;
+            width: 100%;
+            max-width: 520px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            animation: modalFadeIn 0.2s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95) translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%);
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .modal-close-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: background 0.2s;
+        }
+
+        .modal-close-btn:hover {
+            background: rgba(239, 68, 68, 0.8);
+        }
+
+        .modal-body {
+            padding: 22px;
+        }
+
+        .code-pill {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            color: #0f172a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                    <img src="/img/SMT.png" alt="SMT Logo" style="height: 40px; width: auto;">
+                    <div style="text-align: center;">
+                        <h2 style="font-size: 16px; margin: 0; font-weight: 700;">SMT Material</h2>
+                        <p style="font-size: 11px; margin: 0; opacity: 0.8;">Control System</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="nav-menu">
+                <a href="/dashboard.html" class="nav-item">
+                    <span class="nav-icon">&#128202;</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/material-input-scan.html" class="nav-item">
+                    <span class="nav-icon">&#128229;</span>
+                    <span>Material Input</span>
+                </a>
+                <a href="/material-input.html" class="nav-item">
+                    <span class="nav-icon">&#9997;&#65039;</span>
+                    <span>Manual Material Input</span>
+                </a>
+                <div class="nav-dropdown open" id="navOutputDropdown">
+                    <div class="nav-item nav-dropdown-toggle active" id="navOutputToggle" onclick="toggleNavDropdown('navOutputDropdown')">
+                        <div class="nav-dropdown-label">
+                            <span class="nav-icon">&#128228;</span>
+                            <span>Material Output</span>
+                        </div>
+                        <span class="nav-dropdown-arrow">&#9662;</span>
+                    </div>
+                    <div class="nav-submenu">
+                        <a href="/material-output.html" class="nav-subitem" id="navSubOutputStok">
+                            <span class="nav-subitem-icon">&#128230;</span>
+                            <span>Output Stok</span>
+                        </a>
+                        <a href="/material-output-machine.html" class="nav-subitem active" id="navSubOutputMesin">
+                            <span class="nav-subitem-icon">&#9881;&#65039;</span>
+                            <span>Output Mesin</span>
+                        </a>
+                    </div>
+                </div>
+                <a href="/records.html" class="nav-item">
+                    <span class="nav-icon">&#128203;</span>
+                    <span>Records</span>
+                </a>
+                <a href="/master-materials.html" class="nav-item superadmin-nav-item" id="navMasterMaterials" style="display: none;">
+                    <span class="nav-icon">&#128196;</span>
+                    <span>Master Material</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <div class="top-bar">
+                <button class="toggle-btn" onclick="toggleSidebar()">&#9776;</button>
+                <div class="user-dropdown">
+                    <div class="user-info" onclick="toggleUserDropdown()">
+                        <span id="welcomeText">Output Mesin</span>
+                        <span class="user-role" id="userRole">User</span>
+                        <span style="font-size: 10px;">&#9660;</span>
+                    </div>
+                    <div class="dropdown-content" id="userDropdownContent">
+                        <a href="/profile.html">&#128100; My Profile</a>
+                        <a href="#" onclick="logout()">&#128682; Logout</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-area">
+                <!-- Page Title & Header Action -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h1 style="margin: 0 0 6px 0; font-size: 28px;">&#9881;&#65039; Output Mesin (Pemakaian per Type Meter)</h1>
+                        <p style="margin: 0; color: var(--light-text); font-size: 14px;">
+                            Material dari <strong>Output Stok</strong> otomatis masuk ke mesin SMT. Pemakaian material dideteksi langsung dari <strong>Direktori Log Mesin (.log) Samsung &amp; Hanwha</strong> serta koneksi LAN.
+                        </p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="lan-status-pill" id="lanHeaderBadge" style="background: white; border: 1px solid #e2e8f0; color: #166534; box-shadow: var(--shadow);">
+                            <span class="pulse-dot"></span>
+                            LAN Aktif
+                        </span>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="refreshMachinePage()" title="Segarkan Data Feed">
+                            &#128260; Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CARD: PEMANTAU 5 PC MESIN SMT (A1 HANWHA, A2-A3 SAMSUNG, B1-B2 SAMSUNG) - KHUSUS SUPERADMIN -->
+                <div class="card" id="machineWatcherCard" style="border-left: 5px solid #2563eb; display: none;">
+                    <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+                        <div>
+                            <h2 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+                                &#128421;&#65039; Pemantau 5 PC Mesin SMT (Akses Multi-IP via LAN)
+                            </h2>
+                            <small style="color: var(--light-text);">
+                                PC Utama mengakses folder log <span class="code-pill">Pd Info</span> langsung dari masing-masing IP PC mesin (Line A1 Hanwha, A2 Samsung, A3 Samsung, B1 Samsung, B2 Samsung).
+                            </small>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span id="watcherStatusBadge" class="lan-status-pill">
+                                <span class="pulse-dot"></span>
+                                Memeriksa 5 Mesin...
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- 5 PC Mesin Configuration Table & Actions -->
+                    <div class="watcher-box">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                            <div style="font-size: 13px; font-weight: 700; color: var(--dark-text);">
+                                &#128421;&#65039; Pengaturan IP Jaringan &amp; Folder 5 PC Mesin:
+                            </div>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="saveAllMachinesConfig()">
+                                    &#128190; Simpan Konfigurasi IP
+                                </button>
+                                <button type="button" id="watcherScanBtn" class="btn btn-primary btn-sm" onclick="triggerManualScan()" style="background: #2563eb;">
+                                    &#9889; Scan Semua Mesin Sekarang
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 5 Machines Table -->
+                        <div class="table-container" style="background: white; border-radius: 8px; border: 1px solid #cbd5e1; overflow-x: auto;">
+                            <table style="margin: 0; min-width: 680px;">
+                                <thead style="background: #f8fafc;">
+                                    <tr>
+                                        <th style="width: 120px;">Lini Mesin</th>
+                                        <th style="width: 100px;">Merek</th>
+                                        <th>IP PC Mesin (LAN)</th>
+                                        <th>Folder Share / Path Direktori</th>
+                                        <th style="width: 140px;">Status Folder</th>
+                                        <th style="text-align: right; width: 100px;">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="machinesConfigBody">
+                                    <tr>
+                                        <td colspan="6" style="text-align: center; padding: 20px;">
+                                            <div class="spinner"></div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <small style="display: block; margin-top: 8px; color: var(--light-text); font-size: 12px;">
+                            &#128161; Masukkan IP PC mesin (misal: <span class="code-pill">192.168.91.50</span>) dan folder share (default: <span class="code-pill">Pd Info</span>). Untuk pengetesan lokal di laptop, Anda juga dapat memasukkan path folder lokal (misal: <span class="code-pill">C:\Users\...\Pd Info\a1</span>).
+                        </small>
+
+                        <!-- Watcher Info Grid -->
+                        <div class="watcher-grid" style="margin-top: 14px;">
+                            <div class="watcher-item">
+                                <div class="watcher-item-label">Status Koneksi Mesin</div>
+                                <div class="watcher-item-val" id="watcherFolderExistsBadge">-</div>
+                            </div>
+                            <div class="watcher-item">
+                                <div class="watcher-item-label">Total Mesin Terpantau</div>
+                                <div class="watcher-item-val" id="watcherMachinesList">5 PC Mesin (1 Hanwha &bull; 4 Samsung)</div>
+                            </div>
+                            <div class="watcher-item">
+                                <div class="watcher-item-label">Pemeriksaan Terakhir</div>
+                                <div class="watcher-item-val" id="watcherLastScanTime">-</div>
+                            </div>
+                            <div class="watcher-item">
+                                <div class="watcher-item-label">Interval Auto-Scan</div>
+                                <div class="watcher-item-val" id="watcherIntervalSeconds">15 detik</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Processed Log Files Accordion / Table -->
+                    <details style="margin-top: 12px;">
+                        <summary style="cursor: pointer; font-weight: 600; font-size: 13px; color: #1e40af; padding: 6px 0;">
+                            &#9656; Lihat Riwayat File Log Mesin yang Terproses (Klik untuk buka/tutup)
+                        </summary>
+                        <div class="table-container" style="margin-top: 10px;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 36px;">#</th>
+                                        <th>Waktu Proses</th>
+                                        <th>Nama File Log (.log)</th>
+                                        <th>Type Meter</th>
+                                        <th>Mesin / Line</th>
+                                        <th>Komponen &amp; Total Qty</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="processedLogsBody">
+                                    <tr>
+                                        <td colspan="6" style="text-align: center; padding: 20px;">
+                                            <div class="spinner"></div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
+                </div>
+
+                <!-- LAN Connection & Detection Banner -->
+                <div class="lan-banner">
+                    <div class="lan-header-flex">
+                        <div>
+                            <h2 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 700; color: white;">
+                                &#128421;&#65039; Sistem Deteksi Otomatis Mesin SMT (LAN to LAN)
+                            </h2>
+                            <p style="margin: 0; color: #cbd5e1; font-size: 13px;">
+                                Setiap komponen yang dikeluarkan di <strong>Output Stok</strong> otomatis siap di mesin. Pemotongan komponen tercatat otomatis melalui <strong>Direktori Log Mesin</strong> maupun API HTTP POST LAN.
+                            </p>
+                        </div>
+                        <div>
+                            <span class="lan-status-pill">
+                                <span class="pulse-dot"></span>
+                                Siap Menerima Sinyal LAN
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="lan-info-grid">
+                        <div class="lan-info-item">
+                            <div class="lan-info-label">Alamat Server LAN</div>
+                            <div class="lan-info-value" id="lanServerAddress">http://127.0.0.1:3000</div>
+                        </div>
+                        <div class="lan-info-item">
+                            <div class="lan-info-label">Endpoint Deteksi Komponen</div>
+                            <div class="lan-info-value" id="lanEndpoint">/api/machine-output/detect-meter</div>
+                        </div>
+                        <div class="lan-info-item">
+                            <div class="lan-info-label">Type Meter Terpantau</div>
+                            <div class="lan-info-value" style="color: #fde047;">HXE128-KP &bull; HXE12FR &bull; HXE310 &bull; HXE310-KP</div>
+                        </div>
+                        <div class="lan-info-item">
+                            <div class="lan-info-label">Protokol Komunikasi</div>
+                            <div class="lan-info-value" style="color: #4ade80;">SMB LAN Folder Watcher / HTTP POST</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI Statistics -->
+                <div class="stats-grid" style="margin-bottom: 24px;">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Masuk ke Mesin (dari Stok)</div>
+                        <div class="stat-value" id="statTotalPcsMasuk" style="color: #1e40af;">-</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-label">Total Terpakai di Mesin</div>
+                        <div class="stat-value" id="statTotalPcsTerpakai" style="color: #b91c1c;">-</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-label">Sisa Komponen di Feeder Mesin</div>
+                        <div class="stat-value" id="statTotalPcsSisa" style="color: #15803d;">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Type Meter Aktif Mengonsumsi</div>
+                        <div class="stat-value" id="statMeterTypesCount" style="color: #7e22ce;">-</div>
+                    </div>
+                </div>
+
+                <!-- Live Material Feed Table (Auto-entry from Output Stok) -->
+                <div class="card">
+                    <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <h2 class="card-title">&#128202; Pemakaian Komponen Mesin per Type Meter</h2>
+                            <small style="color: var(--light-text);">Otomatis terhubung dengan database Output Stok &amp; Pemotongan Log Mesin / Sinyal LAN</small>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="loadMachineFeed()">
+                                &#128260; Segarkan Feed
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Search & Filter Controls -->
+                    <div class="search-bar" style="margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                        <input 
+                            type="text" 
+                            id="feedSearchInput" 
+                            class="form-input search-input" 
+                            placeholder="Cari Material ID, nama, operator stok..."
+                            style="min-width: 260px;"
+                        >
+                        <select id="feedMeterTypeFilter" class="select-input" style="width: 190px;">
+                            <option value="">Semua Type Meter</option>
+                            <option value="HXE128-KP">HXE128-KP</option>
+                            <option value="HXE12FR">HXE12FR</option>
+                            <option value="HXE310">HXE310</option>
+                            <option value="HXE310-KP">HXE310-KP</option>
+                        </select>
+                        <select id="feedStatusFilter" class="select-input" style="width: 170px;">
+                            <option value="">Semua Status Feeder</option>
+                            <option value="ready">&#128309; Siap di Mesin (100%)</option>
+                            <option value="running">&#128994; Aktif Digunakan</option>
+                            <option value="low">&#128992; Menipis (&lt;20%)</option>
+                            <option value="exhausted">&#128308; Habis Terpakai</option>
+                        </select>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="loadMachineFeed()">
+                            &#128269; Cari
+                        </button>
+                    </div>
+
+                    <!-- Feed Table -->
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 36px;">#</th>
+                                    <th style="width: 140px;">Status Feeder</th>
+                                    <th>Material ID &amp; Nama</th>
+                                    <th>Total Masuk (Stok)</th>
+                                    <th>Rincian Pemakaian per Type Meter</th>
+                                    <th>Total Terpakai</th>
+                                    <th>Sisa Feeder</th>
+                                    <th style="text-align: right; width: 140px;">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="machineFeedBody">
+                                <tr>
+                                    <td colspan="8" style="text-align: center; padding: 36px;">
+                                        <div class="spinner"></div>
+                                        <p style="margin-top: 10px; color: var(--light-text); font-size: 13px;">Memuat data komponen mesin...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Real-time LAN & Auto Log Incoming History -->
+                <div class="card">
+                    <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+                        <div>
+                            <h2 class="card-title">&#128421;&#65039; Log Riwayat Pemotongan Komponen Mesin</h2>
+                            <small style="color: var(--light-text);">Mencatat setiap pemakaian yang dilaporkan oleh Auto-Log Mesin (.log) maupun sinyal LAN</small>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <label for="historySortSelect" style="font-size: 13px; font-weight: 600; color: var(--dark-text); white-space: nowrap;">Urutkan:</label>
+                                <select id="historySortSelect" class="select-input" style="width: 160px; height: 36px; padding: 4px 10px; font-size: 13px;" onchange="onHistorySortChange(this.value)">
+                                    <option value="desc" selected>⏱️ Terbaru (Desc)</option>
+                                    <option value="asc">⏱️ Terlama (Asc)</option>
+                                </select>
+                            </div>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="loadDetectionHistory()">
+                                &#128260; Refresh Log
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 36px;">#</th>
+                                    <th>Waktu Deteksi</th>
+                                    <th>Material ID &amp; Nama</th>
+                                    <th>Type Meter</th>
+                                    <th>Qty Digunakan</th>
+                                    <th>Sumber Mesin / Log</th>
+                                    <th style="text-align: right; width: 60px;">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detectionHistoryBody">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 24px;">
+                                        <div class="spinner"></div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination for History Table -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 16px; padding: 8px 4px 2px 4px; border-top: 1px solid #f1f5f9;">
+                        <div id="historyPageInfo" style="font-size: 13px; color: var(--light-text); font-weight: 500;">
+                            Menampilkan 0 data
+                        </div>
+                        <div class="pagination" id="historyPagination" style="margin-top: 0;"></div>
+                    </div>
+                </div>
+
+                <!-- Panduan Integrasi -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">&#128214; Panduan Koneksi Direktori Log Mesin Samsung &amp; Hanwha</h2>
+                    </div>
+                    <div style="line-height: 1.7; color: var(--dark-text); font-size: 14px;">
+                        <p style="margin-top: 0;">
+                            Sistem ini dirancang khusus untuk lini SMT dengan <strong>4 Mesin Samsung dan 1 Mesin Hanwha</strong>:
+                        </p>
+
+                        <ul style="margin: 0 0 16px 0; padding-left: 20px; color: var(--dark-text);">
+                            <li><strong>Deteksi Otomatis Type Meter dari Nama File:</strong>
+                                <br>Sistem membaca kode produk dari nama file:
+                                <ul style="margin-top: 4px; color: var(--light-text);">
+                                    <li><span class="code-pill">H_HXE12FR-A1-...log</span> &rarr; Otomatis dialokasikan ke <strong>HXE12FR</strong></li>
+                                    <li><span class="code-pill">H_HXE128-KP-V3-...log</span> &rarr; Otomatis dialokasikan ke <strong>HXE128-KP</strong></li>
+                                    <li><span class="code-pill">H_HXE310-KP-V3-...log</span> &rarr; Otomatis dialokasikan ke <strong>HXE310-KP</strong></li>
+                                    <li><span class="code-pill">H_HXE310-V2-...log</span> &rarr; Otomatis dialokasikan ke <strong>HXE310</strong></li>
+                                </ul>
+                            </li>
+                            <li><strong>Ekstraksi Baris [Tape Feeder]:</strong>
+                                <br>Sistem otomatis mengekstrak kolom ke-3 (Material ID / Part Number) dan kolom ke-6 (Mounted Count / Pcs yang terpasang pada PCB).
+                            </li>
+                            <li><strong>Koneksi Jaringan LAN:</strong>
+                                <br>Jika folder berada di PC mesin Samsung / Hanwha yang berbeda, cukup jadikan folder <span class="code-pill">Pd Info</span> sebagai <em>Windows Shared Folder</em> (misal: <span class="code-pill">\\IP_PC_MESIN\Pd Info</span>) atau Map Network Drive (misal: <span class="code-pill">Z:\Pd Info</span>). Masukkan path tersebut pada kotak input di atas dan klik <strong>Simpan Path</strong>.
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Simulasi / Uji Coba Sinyal LAN -->
+    <div id="simulateModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>&#9889; Simulasi Deteksi Sinyal LAN Mesin</h3>
+                <button type="button" class="modal-close-btn" onclick="closeSimulateModal()">&times;</button>
+            </div>
+            <form onsubmit="submitSimulateDetection(event)" class="modal-body">
+                <input type="hidden" id="simMaterialId">
+                <input type="hidden" id="simTransactionId">
+
+                <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px 14px; border-radius: 8px; margin-bottom: 16px;">
+                    <div style="font-size: 11px; color: #1e40af; font-weight: 600; text-transform: uppercase;">Material Terpilih</div>
+                    <div id="simMaterialName" style="font-size: 14px; font-weight: 700; color: #1e3a8a; margin-top: 2px;">-</div>
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 6px; color: #475569;">
+                        <span>Sisa di Feeder Mesin:</span>
+                        <strong id="simRemainingPcs" style="color: #15803d; font-size: 13px;">-</strong>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label for="simMeterType" style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px;">
+                        &#127991;&#65039; Terpakai untuk Type Meter:
+                    </label>
+                    <select id="simMeterType" class="select-input" style="width: 100%; height: 42px; font-weight: 600;" required>
+                        <option value="HXE128-KP">HXE128-KP</option>
+                        <option value="HXE12FR">HXE12FR</option>
+                        <option value="HXE310">HXE310</option>
+                        <option value="HXE310-KP">HXE310-KP</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label for="simUsedQuantity" style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px;">
+                        &#128227; Jumlah Komponen Terpakai (pcs):
+                    </label>
+                    <input 
+                        type="number" 
+                        id="simUsedQuantity" 
+                        class="form-input" 
+                        placeholder="Contoh: 1500" 
+                        min="1" 
+                        step="1"
+                        style="width: 100%; height: 42px; font-size: 15px; font-weight: 700;" 
+                        required
+                    >
+                    <small style="color: var(--light-text); font-size: 11px; display: block; margin-top: 4px;">
+                        Jumlah ini akan memotong sisa komponen pada feeder mesin untuk type meter terpilih.
+                    </small>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label for="simSourcePc" style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px;">
+                        &#128421;&#65039; Sumber PC / Mesin (Pengenal Jaringan):
+                    </label>
+                    <input 
+                        type="text" 
+                        id="simSourcePc" 
+                        class="form-input" 
+                        value="PC Mesin SMT 1 (LAN)"
+                        style="width: 100%; height: 42px;" 
+                        required
+                    >
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeSimulateModal()">
+                        Batal
+                    </button>
+                    <button type="submit" id="simSubmitBtn" class="btn btn-primary" style="background: #0284c7;">
+                        &#128640; Kirim Sinyal Deteksi
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/utils.js"></script>
+    <script src="/js/session-timeout.js"></script>
+    <script src="/js/material-output-machine.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Records - SMT Material Control</title>
+    <link rel="icon" href="/img/SMT.png?v=5" type="image/png">
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .meter-dropdown-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            outline: none;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            white-space: nowrap;
+        }
+
+        .meter-dropdown-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px -1px rgba(0, 0, 0, 0.12);
+        }
+
+        .meter-chevron {
+            font-size: 11px;
+            transition: transform 0.2s ease;
+            display: inline-block;
+        }
+
+        .meter-dropdown-btn.active .meter-chevron {
+            transform: rotate(180deg);
+        }
+
+        .meter-detail-subrow {
+            background: #f8fafc;
+        }
+
+        .meter-detail-subrow > td {
+            padding: 0 !important;
+            border-bottom: 2px solid #cbd5e1;
+        }
+
+        .meter-detail-panel {
+            padding: 14px 18px;
+            border-left: 4px solid #2563eb;
+            animation: subrowFadeIn 0.2s ease-out;
+        }
+
+        @keyframes subrowFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-4px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .meter-records-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+            font-size: 13px;
+            margin: 0;
+        }
+
+        .meter-records-table thead {
+            background: #f1f5f9;
+        }
+
+        .meter-records-table th {
+            padding: 8px 12px;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--light-text);
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 600;
+        }
+
+        .meter-records-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 12px;
+        }
+
+        .chip-kpi {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                    <img src="/img/SMT.png" alt="SMT Logo" style="height: 40px; width: auto;">
+                    <div style="text-align: center;">
+                        <h2 style="font-size: 16px; margin: 0; font-weight: 700;">SMT Material</h2>
+                        <p style="font-size: 11px; margin: 0; opacity: 0.8;">Control System</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="nav-menu">
+                <a href="/dashboard.html" class="nav-item">
+                    <span class="nav-icon">&#128202;</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/material-input-scan.html" class="nav-item">
+                    <span class="nav-icon">&#128229;</span>
+                    <span>Material Input</span>
+                </a>
+                <a href="/material-input.html" class="nav-item">
+                    <span class="nav-icon">&#9997;&#65039;</span>
+                    <span>Manual Material Input</span>
+                </a>
+                <div class="nav-dropdown" id="navOutputDropdown">
+                    <div class="nav-item nav-dropdown-toggle" id="navOutputToggle" onclick="toggleNavDropdown('navOutputDropdown')">
+                        <div class="nav-dropdown-label">
+                            <span class="nav-icon">&#128228;</span>
+                            <span>Material Output</span>
+                        </div>
+                        <span class="nav-dropdown-arrow">&#9662;</span>
+                    </div>
+                    <div class="nav-submenu">
+                        <a href="/material-output.html" class="nav-subitem" id="navSubOutputStok">
+                            <span class="nav-subitem-icon">&#128230;</span>
+                            <span>Output Stok</span>
+                        </a>
+                        <a href="/material-output-machine.html" class="nav-subitem" id="navSubOutputMesin">
+                            <span class="nav-subitem-icon">&#9881;&#65039;</span>
+                            <span>Output Mesin</span>
+                        </a>
+                    </div>
+                </div>
+                <a href="/records.html" class="nav-item active">
+                    <span class="nav-icon">&#128203;</span>
+                    <span>Records</span>
+                </a>
+                <a href="/master-materials.html" class="nav-item superadmin-nav-item" id="navMasterMaterials" style="display: none;">
+                    <span class="nav-icon">&#128196;</span>
+                    <span>Master Material</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <div class="top-bar">
+                <button class="toggle-btn" onclick="toggleSidebar()">&#9776;</button>
+                <div class="user-dropdown">
+                    <div class="user-info" onclick="toggleUserDropdown()">
+                        <span id="welcomeText">Transaction Records</span>
+                        <span class="user-role" id="userRole">User</span>
+                        <span style="font-size: 10px;">&#9660;</span>
+                    </div>
+                    <div class="dropdown-content" id="userDropdownContent">
+                        <a href="/profile.html">&#128100; My Profile</a>
+                        <a href="#" onclick="logout()">&#128682; Logout</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-area">
+                <h1 style="margin-bottom: 24px; font-size: 28px;">&#128203; Transaction Records</h1>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Riwayat Input & Output Material</h2>
+                    </div>
+
+                    <div class="search-bar">
+                        <input type="text" id="searchInput" class="form-input search-input"
+                            placeholder="Cari material ID, nama, type meter...">
+                        <select id="typeFilter" class="select-input" style="width: 150px;">
+                            <option value="">Semua Tipe</option>
+                            <option value="INPUT">Input</option>
+                            <option value="OUTPUT">Output</option>
+                        </select>
+                        <input type="datetime-local" id="startDateTimeFilter" class="form-input"
+                            style="width: 220px;" title="Dari tanggal & waktu">
+                        <input type="datetime-local" id="endDateTimeFilter" class="form-input"
+                            style="width: 220px;" title="Sampai tanggal & waktu">
+                        <button class="btn btn-primary btn-sm" onclick="applyFilters()">&#128269; Filter</button>
+                        <button class="btn btn-secondary btn-sm" onclick="resetFilters()">Reset</button>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tanggal & Waktu</th>
+                                    <th>Tipe</th>
+                                    <th>Material ID</th>
+                                    <th>Material Name</th>
+                                    <th>Quantity</th>
+                                    <th>User</th>
+                                    <th style="min-width: 180px;">Output Mesin</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recordsTableBody">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 40px;">
+                                        <div class="spinner"></div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="pagination" id="pagination"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/utils.js"></script>
+    <script src="/js/session-timeout.js"></script>
+    <script>
+        let currentPage = 1;
+        const limit = 20;
+
+        // Check authentication
+        checkAuth();
+
+        // Load records on page load
+        loadRecords();
+
+        // Search on Enter key
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                applyFilters();
+            }
+        });
+
+        document.getElementById('startDateTimeFilter').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                applyFilters();
+            }
+        });
+
+        document.getElementById('endDateTimeFilter').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                applyFilters();
+            }
+        });
+
+        function applyFilters() {
+            currentPage = 1;
+            loadRecords();
+        }
+
+        function resetFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('typeFilter').value = '';
+            document.getElementById('startDateTimeFilter').value = '';
+            document.getElementById('endDateTimeFilter').value = '';
+            currentPage = 1;
+            loadRecords();
+        }
+
+        async function loadRecords() {
+            const search = document.getElementById('searchInput').value;
+            const type = document.getElementById('typeFilter').value;
+            const startDateTime = document.getElementById('startDateTimeFilter').value;
+            const endDateTime = document.getElementById('endDateTimeFilter').value;
+
+            if (startDateTime && endDateTime && new Date(startDateTime) > new Date(endDateTime)) {
+                showToast('Rentang tanggal tidak valid: "Dari" lebih besar dari "Sampai"', 'warning');
+                return;
+            }
+
+            try {
+                const params = new URLSearchParams({
+                    page: currentPage,
+                    limit: limit
+                });
+
+                if (search) {
+                    params.set('search', search);
+                }
+
+                if (type) {
+                    params.set('type', type);
+                }
+
+                if (startDateTime) {
+                    params.set('startDateTime', startDateTime);
+                }
+
+                if (endDateTime) {
+                    params.set('endDateTime', endDateTime);
+                }
+
+                const response = await fetch(`/api/transactions/history?${params}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    displayRecords(data.data);
+                    displayPagination(data.pagination);
+                } else {
+                    showToast('Gagal memuat data', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading records:', error);
+                showToast('Error memuat data', 'error');
+            }
+        }
+
+        function displayRecords(records) {
+            const tbody = document.getElementById('recordsTableBody');
+
+            if (records.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: var(--light-text);">
+                            Tidak ada data transaksi
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let html = '';
+            for (const record of records) {
+                const isOutput = record.transaction_type === 'OUTPUT';
+                const mo = record.machine_output;
+
+                let outputMesinCell = '<span style="color: var(--light-text); font-weight: 500;">-</span>';
+
+                if (isOutput && mo) {
+                    const primaryMeterType = mo.default_meter_type || (mo.meter_breakdown.length > 0 ? mo.meter_breakdown[0].meter_type : '-');
+                    const badgeInfo = getMeterBadgeInfo(primaryMeterType);
+
+                    let dropdownLabel = '';
+                    if (mo.meter_breakdown && mo.meter_breakdown.length > 1) {
+                        dropdownLabel = `🏷️ ${mo.meter_breakdown.length} Type Meter (${formatNumber(record.quantity)} pcs)`;
+                    } else {
+                        dropdownLabel = `🏷️ ${primaryMeterType} (${formatNumber(record.quantity)} pcs)`;
+                    }
+
+                    outputMesinCell = `
+                        <button 
+                            type="button" 
+                            class="meter-dropdown-btn" 
+                            id="btn-dropdown-${record.id}"
+                            onclick="toggleMeterDropdown(${record.id}, event)"
+                            title="Klik untuk membuka dropdown record Output Mesin"
+                            style="background: ${badgeInfo.bg}; border: 1.5px solid ${badgeInfo.border}; color: ${badgeInfo.strong};"
+                        >
+                            <span>${escapeHtml(dropdownLabel)}</span>
+                            <span class="meter-chevron" id="chevron-${record.id}">▾</span>
+                        </button>
+                    `;
+                }
+
+                html += `
+                    <tr id="row-${record.id}">
+                        <td>${formatDateTime(record.created_at)}</td>
+                        <td>
+                            <span class="badge ${record.transaction_type === 'INPUT' ? 'badge-input' : 'badge-output'}">
+                                ${record.transaction_type}
+                            </span>
+                        </td>
+                        <td style="font-family: 'Courier New', monospace; font-weight: bold;">${escapeHtml(record.material_id)}</td>
+                        <td>${escapeHtml(record.material_name)}</td>
+                        <td style="font-weight: 700;">${formatNumber(record.quantity)} pcs</td>
+                        <td>${escapeHtml(record.operator_name || record.display_user || record.username || '-')}</td>
+                        <td>${outputMesinCell}</td>
+                    </tr>
+                `;
+
+                if (isOutput && mo) {
+                    html += renderDetailSubRow(record, mo);
+                }
+            }
+
+            tbody.innerHTML = html;
+        }
+
+        function renderDetailSubRow(record, mo) {
+            const recordsList = mo.records || [];
+
+            return `
+                <tr id="detail-row-${record.id}" class="meter-detail-subrow" style="display: none;">
+                    <td colspan="7">
+                        <div class="meter-detail-panel">
+                            <div class="meter-detail-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 16px;">⚙️</span>
+                                    <strong style="font-size: 13px; color: #0f172a;">Record Output Mesin: ${escapeHtml(record.material_name)}</strong>
+                                    <span style="font-family: 'Courier New', monospace; font-size: 12px; color: var(--light-text);">(${escapeHtml(record.material_id)})</span>
+                                </div>
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <span class="chip-kpi" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8;">
+                                        Total Masuk: <strong>${formatNumber(record.quantity)} pcs</strong>
+                                    </span>
+                                    <span class="chip-kpi" style="background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c;">
+                                        Terpakai Mesin: <strong>${formatNumber(mo.total_used)} pcs</strong>
+                                    </span>
+                                    <span class="chip-kpi" style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d;">
+                                        Sisa Feeder: <strong>${formatNumber(mo.remaining)} pcs</strong>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div style="border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; background: white;">
+                                <table class="meter-records-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 36px;">#</th>
+                                            <th>Waktu Record</th>
+                                            <th>Type Meter</th>
+                                            <th>Quantity Digunakan</th>
+                                            <th>Sumber Mesin / Line</th>
+                                            <th>Catatan / Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${recordsList.map((item, idx) => {
+                                            const badgeInfo = getMeterBadgeInfo(item.meter_type);
+                                            const qtyDisplay = (item.used_quantity !== undefined && item.used_quantity > 0)
+                                                ? `${formatNumber(item.used_quantity)} pcs`
+                                                : `${formatNumber(item.allocated_quantity || record.quantity)} pcs`;
+
+                                            return `
+                                                <tr>
+                                                    <td style="color: var(--light-text);">${idx + 1}</td>
+                                                    <td style="white-space: nowrap;">⏱️ ${formatDateTime(item.created_at)}</td>
+                                                    <td>
+                                                        <span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; background: ${badgeInfo.bg}; border: 1px solid ${badgeInfo.border}; color: ${badgeInfo.text};">
+                                                            🏷️ ${escapeHtml(item.meter_type)}
+                                                        </span>
+                                                    </td>
+                                                    <td style="font-weight: 700; color: #1e3a8a;">
+                                                        ${qtyDisplay}
+                                                    </td>
+                                                    <td style="color: #334155; font-weight: 500;">
+                                                        🖥️ ${escapeHtml(item.source_pc || 'Mesin SMT')}
+                                                    </td>
+                                                    <td style="color: var(--light-text); font-size: 12px;">
+                                                        ${escapeHtml(item.notes || 'Tercatat di Output Mesin')}
+                                                    </td>
+                                                </tr>
+                                            `;
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+                                <a href="/material-output-machine.html" style="font-size: 12px; color: #2563eb; text-decoration: none; font-weight: 600;">
+                                    🔍 Buka Pemantau Output Mesin &rarr;
+                                </a>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        function toggleMeterDropdown(txId, event) {
+            if (event) event.stopPropagation();
+            const detailRow = document.getElementById(`detail-row-${txId}`);
+            const btn = document.getElementById(`btn-dropdown-${txId}`);
+            const chevron = document.getElementById(`chevron-${txId}`);
+            if (!detailRow || !btn) return;
+
+            const isCurrentlyHidden = detailRow.style.display === 'none' || !detailRow.style.display;
+
+            // Close other open detail rows for cleanliness
+            document.querySelectorAll('.meter-detail-subrow').forEach(row => {
+                if (row.id !== `detail-row-${txId}`) {
+                    row.style.display = 'none';
+                }
+            });
+            document.querySelectorAll('.meter-dropdown-btn').forEach(b => {
+                if (b.id !== `btn-dropdown-${txId}`) {
+                    b.classList.remove('active');
+                }
+            });
+            document.querySelectorAll('.meter-chevron').forEach(c => {
+                if (c.id !== `chevron-${txId}`) {
+                    c.textContent = '▾';
+                }
+            });
+
+            if (isCurrentlyHidden) {
+                detailRow.style.display = 'table-row';
+                btn.classList.add('active');
+                if (chevron) chevron.textContent = '▴';
+            } else {
+                detailRow.style.display = 'none';
+                btn.classList.remove('active');
+                if (chevron) chevron.textContent = '▾';
+            }
+        }
+
+        function getMeterBadgeInfo(meterType) {
+            const norm = String(meterType || '').toUpperCase();
+            if (norm.includes('12FR')) {
+                return { bg: '#f0fdf4', border: '#bbf7d0', text: '#15803d', strong: '#166534' };
+            }
+            if (norm.includes('128')) {
+                return { bg: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8', strong: '#1e40af' };
+            }
+            if (norm.includes('310-KP') || norm.includes('310KP')) {
+                return { bg: '#fdf2f8', border: '#fbcfe8', text: '#be185d', strong: '#9d174d' };
+            }
+            if (norm.includes('310')) {
+                return { bg: '#faf5ff', border: '#e9d5ff', text: '#7e22ce', strong: '#6b21a8' };
+            }
+            return { bg: '#f8fafc', border: '#cbd5e1', text: '#334155', strong: '#0f172a' };
+        }
+
+        function escapeHtml(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function displayPagination(pagination) {
+            const container = document.getElementById('pagination');
+            const { page, totalPages } = pagination;
+
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+
+            // Previous button
+            if (page > 1) {
+                html += `<button class="page-btn" onclick="changePage(${page - 1})">&larr; Prev</button>`;
+            }
+
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= page - 2 && i <= page + 2)) {
+                    html += `<button class="page-btn ${i === page ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+                } else if (i === page - 3 || i === page + 3) {
+                    html += `<span>...</span>`;
+                }
+            }
+
+            // Next button
+            if (page < totalPages) {
+                html += `<button class="page-btn" onclick="changePage(${page + 1})">Next &rarr;</button>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        function changePage(page) {
+            currentPage = page;
+            loadRecords();
+        }
+
+        function formatDateTime(dateString) {
+            const date = new Date(dateString);
+            const options = {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            };
+            return date.toLocaleString('id-ID', options);
+        }
+
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - SMT Material Control</title>
+    <link rel="icon" href="/img/SMT.png?v=5" type="image/png">
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .profile-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .profile-info h1 {
+            margin: 0 0 8px 0;
+            font-size: 24px;
+        }
+
+        .profile-info p {
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .profile-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        @media (min-width: 1024px) {
+            .profile-grid {
+                grid-template-columns: 350px 1fr;
+            }
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* User Table Styles */
+        .user-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .user-table th {
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 2px solid #f3f4f6;
+            color: var(--light-text);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .user-table td {
+            padding: 16px;
+            border-bottom: 1px solid #f3f4f6;
+            vertical-align: middle;
+        }
+
+        .user-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .user-avatar-small {
+            width: 32px;
+            height: 32px;
+            background: #e0e7ff;
+            color: #4338ca;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 12px;
+            margin-right: 12px;
+        }
+
+        .user-cell {
+            display: flex;
+            align-items: center;
+        }
+
+        .password-text {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--light-text);
+            max-width: 220px;
+            display: inline-block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+
+        .password-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .password-eye-btn {
+            width: 28px;
+            height: 28px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .password-eye-btn:hover {
+            background: #f3f4f6;
+        }
+
+        .password-eye-btn svg {
+            width: 16px;
+            height: 16px;
+            color: #4b5563;
+        }
+
+        .catalog-upload-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .catalog-file-input {
+            flex: 1;
+            min-width: 260px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                    <img src="/img/SMT.png" alt="SMT Logo" style="height: 40px; width: auto;">
+                    <div style="text-align: center;">
+                        <h2 style="font-size: 16px; margin: 0; font-weight: 700;">SMT Material</h2>
+                        <p style="font-size: 11px; margin: 0; opacity: 0.8;">Control System</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="nav-menu">
+                <a href="/dashboard.html" class="nav-item">
+                    <span class="nav-icon">&#128202;</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/material-input-scan.html" class="nav-item">
+                    <span class="nav-icon">&#128229;</span>
+                    <span>Material Input</span>
+                </a>
+                <a href="/material-input.html" class="nav-item">
+                    <span class="nav-icon">&#9997;&#65039;</span>
+                    <span>Manual Material Input</span>
+                </a>
+                <div class="nav-dropdown" id="navOutputDropdown">
+                    <div class="nav-item nav-dropdown-toggle" id="navOutputToggle" onclick="toggleNavDropdown('navOutputDropdown')">
+                        <div class="nav-dropdown-label">
+                            <span class="nav-icon">&#128228;</span>
+                            <span>Material Output</span>
+                        </div>
+                        <span class="nav-dropdown-arrow">&#9662;</span>
+                    </div>
+                    <div class="nav-submenu">
+                        <a href="/material-output.html" class="nav-subitem" id="navSubOutputStok">
+                            <span class="nav-subitem-icon">&#128230;</span>
+                            <span>Output Stok</span>
+                        </a>
+                        <a href="/material-output-machine.html" class="nav-subitem" id="navSubOutputMesin">
+                            <span class="nav-subitem-icon">&#9881;&#65039;</span>
+                            <span>Output Mesin</span>
+                        </a>
+                    </div>
+                </div>
+                <a href="/records.html" class="nav-item">
+                    <span class="nav-icon">&#128203;</span>
+                    <span>Records</span>
+                </a>
+                <a href="/master-materials.html" class="nav-item superadmin-nav-item" id="navMasterMaterials" style="display: none;">
+                    <span class="nav-icon">&#128196;</span>
+                    <span>Master Material</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <div class="top-bar">
+                <button class="toggle-btn" onclick="toggleSidebar()">&#9776;</button>
+                <div class="user-dropdown">
+                    <div class="user-info" onclick="toggleUserDropdown()">
+                        <span id="welcomeText">Loading...</span>
+                        <span class="user-role" id="userRole">-</span>
+                        <span style="font-size: 10px;">&#9660;</span>
+                    </div>
+                    <div class="dropdown-content" id="userDropdownContent">
+                        <a href="/profile.html">&#128100; My Profile</a>
+                        <a href="#" onclick="logout()">&#128682; Logout</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-area">
+                <!-- Profile Header -->
+                <div class="profile-header">
+                    <div class="profile-avatar">&#128100;</div>
+                    <div class="profile-info">
+                        <h1 id="headerUsername">Loading...</h1>
+                        <p id="headerRole">Loading role...</p>
+                    </div>
+                </div>
+
+                <div class="profile-grid">
+                    <!-- Left Column: Edit Profile -->
+                    <div class="card" style="height: fit-content;">
+                        <div class="section-title"><span>&#9999;&#65039;</span> Edit Profile</div>
+                        <form id="profileForm">
+                            <div class="form-group">
+                                <label for="username">Username</label>
+                                <input type="text" id="username" class="form-input" required>
+                                <small class="text-muted">Username ini digunakan untuk login</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="password">New Password</label>
+                                <input type="password" id="password" class="form-input"
+                                    placeholder="Biarkan kosong jika tidak diganti">
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="updateProfileBtn" style="width: 100%;">
+                                Simpan Perubahan
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Right Column: User Management (Superadmin Only) -->
+                    <div class="card" id="userManagementCard" style="display: none;">
+                        <div class="section-title"><span>&#128101;</span> User Management</div>
+
+                        <!-- Add User Section -->
+                        <div
+                            style="background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #e2e8f0;">
+                            <h3 style="font-size: 14px; margin: 0 0 16px 0; color: var(--text-color);">&#10133; Tambah User
+                                Baru</h3>
+                            <form id="addUserForm"
+                                style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end;">
+                                <div>
+                                    <input type="text" id="newUsername" class="form-input" placeholder="Username"
+                                        required>
+                                </div>
+                                <div>
+                                    <input type="password" id="newPassword" class="form-input" placeholder="Password"
+                                        required>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <select id="newRole" class="select-input" style="width: 120px;">
+                                        <option value="user">User</option>
+                                        <option value="admin">Admin</option>
+                                        <option value="superadmin">Super Admin</option>
+                                    </select>
+                                    <button type="submit" class="btn btn-success">Add</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- User List Table -->
+                        <h3 style="font-size: 14px; margin: 0 0 16px 0; color: var(--text-color);">&#128203; Daftar User</h3>
+                        <div class="table-container">
+                            <table class="user-table">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Role</th>
+                                        <th>Password</th>
+                                        <th>Created Date</th>
+                                        <th style="text-align: right;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="userListBody">
+                                    <!-- User rows will be injected here -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Output Operator Master -->
+                        <div style="margin-top: 28px; border-top: 1px solid #e5e7eb; padding-top: 24px;">
+                            <h3 style="font-size: 14px; margin: 0 0 16px 0; color: var(--text-color);">&#128221; Master Nama Operator Output</h3>
+
+                            <form id="addOperatorForm" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 16px;">
+                                <div style="flex: 1; min-width: 260px;">
+                                    <label for="newOperatorName" style="display: block; margin-bottom: 6px; font-size: 13px; color: var(--light-text);">Nama Operator</label>
+                                    <input type="text" id="newOperatorName" class="form-input" placeholder="Contoh: Budi Santoso" maxlength="100" required>
+                                </div>
+                                <button type="submit" class="btn btn-success btn-sm" id="addOperatorBtn" style="width: auto;">
+                                    Tambah Operator
+                                </button>
+                            </form>
+
+                            <div class="table-container">
+                                <table class="user-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nama Operator</th>
+                                            <th>Dibuat</th>
+                                            <th style="text-align: right;">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="operatorListBody">
+                                        <tr>
+                                            <td colspan="3" style="text-align: center; padding: 20px; color: var(--light-text);">
+                                                Memuat daftar operator...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/utils.js"></script>
+    <script src="/js/session-timeout.js"></script>
+    <script src="/js/profile.js"></script>
+</body>
+
+</html>

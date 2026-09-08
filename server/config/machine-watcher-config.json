@@ -1,0 +1,54 @@
+{
+  "enabled": true,
+  "pollIntervalSeconds": 15,
+  "onlyNewFilesSinceStart": true,
+  "usePickedOrMounted": "mounted",
+  "startedAt": "2026-09-04T09:19:40.101Z",
+  "machines": [
+    {
+      "id": "A1",
+      "name": "Line A1",
+      "brand": "Hanwha",
+      "ip": "192.168.91.165",
+      "shareFolder": "Pd Info",
+      "path": "C:\\Users\\Rama-Notebook\\Documents\\Adid\\Pd Info\\a1",
+      "enabled": true
+    },
+    {
+      "id": "A2",
+      "name": "Line A2",
+      "brand": "Samsung",
+      "ip": "192.168.1.102",
+      "shareFolder": "Pd Info",
+      "path": "",
+      "enabled": true
+    },
+    {
+      "id": "A3",
+      "name": "Line A3",
+      "brand": "Samsung",
+      "ip": "192.168.1.103",
+      "shareFolder": "Pd Info",
+      "path": "",
+      "enabled": true
+    },
+    {
+      "id": "B1",
+      "name": "Line B1",
+      "brand": "Samsung",
+      "ip": "192.168.91.165",
+      "shareFolder": "Pd Info",
+      "path": "C:\\Users\\Rama-Notebook\\Documents\\Adid\\Pd Info\\b1",
+      "enabled": true
+    },
+    {
+      "id": "B2",
+      "name": "Line B2",
+      "brand": "Samsung",
+      "ip": "192.168.1.105",
+      "shareFolder": "Pd Info",
+      "path": "",
+      "enabled": true
+    }
+  ]
+}

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Material SMT - SMT Material Control</title>
+    <link rel="icon" href="/img/SMT.png?v=5" type="image/png">
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .master-header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1d4ed8;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .master-badge-count {
+            background: #dcfce7;
+            border: 1px solid #86efac;
+            color: #15803d;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .excel-box {
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .excel-upload-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            flex: 1;
+        }
+
+        .excel-upload-group input[type="file"] {
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 13px;
+            max-width: 320px;
+            cursor: pointer;
+        }
+
+        .rule-note {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+
+        .rule-note strong {
+            color: #14532d;
+        }
+
+        .toolbar-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .search-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            flex: 1;
+            max-width: 500px;
+        }
+
+        .actions-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .material-id-cell {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            font-weight: 700;
+            color: #1e3a8a;
+            background: #f1f5f9;
+            padding: 3px 8px;
+            border-radius: 5px;
+            display: inline-block;
+        }
+
+        /* Modal Styles */
+        .modal-body {
+            margin-top: 16px;
+            margin-bottom: 24px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                    <img src="/img/SMT.png?v=5" alt="SMT Logo" style="height: 40px; width: auto;">
+                    <div style="text-align: center;">
+                        <h2 style="font-size: 16px; margin: 0; font-weight: 700;">SMT Material</h2>
+                        <p style="font-size: 11px; margin: 0; opacity: 0.8;">Control System</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="nav-menu">
+                <a href="/dashboard.html" class="nav-item">
+                    <span class="nav-icon">&#128202;</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/material-input-scan.html" class="nav-item">
+                    <span class="nav-icon">&#128229;</span>
+                    <span>Material Input</span>
+                </a>
+                <a href="/material-input.html" class="nav-item" id="inputLink">
+                    <span class="nav-icon">&#9997;&#65039;</span>
+                    <span>Manual Material Input</span>
+                </a>
+                <div class="nav-dropdown" id="navOutputDropdown">
+                    <div class="nav-item nav-dropdown-toggle" id="navOutputToggle" onclick="toggleNavDropdown('navOutputDropdown')">
+                        <div class="nav-dropdown-label">
+                            <span class="nav-icon">&#128228;</span>
+                            <span>Material Output</span>
+                        </div>
+                        <span class="nav-dropdown-arrow">&#9662;</span>
+                    </div>
+                    <div class="nav-submenu">
+                        <a href="/material-output.html" class="nav-subitem" id="navSubOutputStok">
+                            <span class="nav-subitem-icon">&#128230;</span>
+                            <span>Output Stok</span>
+                        </a>
+                        <a href="/material-output-machine.html" class="nav-subitem" id="navSubOutputMesin">
+                            <span class="nav-subitem-icon">&#9881;&#65039;</span>
+                            <span>Output Mesin</span>
+                        </a>
+                    </div>
+                </div>
+                <a href="/records.html" class="nav-item">
+                    <span class="nav-icon">&#128203;</span>
+                    <span>Records</span>
+                </a>
+                <!-- Master Material (Superadmin Only) -->
+                <a href="/master-materials.html" class="nav-item active superadmin-nav-item" id="navMasterMaterials">
+                    <span class="nav-icon">&#128196;</span>
+                    <span>Master Material</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <div class="top-bar">
+                <button class="toggle-btn" onclick="toggleSidebar()">&#9776;</button>
+                <div class="user-dropdown">
+                    <div class="user-info" onclick="toggleUserDropdown()">
+                        <span id="welcomeText">Halo, Engineer</span>
+                        <span class="user-role" id="userRole">Superadmin</span>
+                        <span style="font-size: 10px;">&#9660;</span>
+                    </div>
+                    <div class="dropdown-content" id="userDropdownContent">
+                        <a href="/profile.html">&#128100; My Profile</a>
+                        <a href="#" onclick="logout()">&#128682; Logout</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-area">
+                <!-- Page Header -->
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px;">
+                    <div>
+                        <h1 style="margin: 0 0 6px 0; font-size: 26px; font-weight: 700; color: var(--dark-text); display: flex; align-items: center; gap: 10px;">
+                            <span>&#128196;</span> Master Data Material SMT
+                        </h1>
+                        <p style="margin: 0; color: var(--light-text); font-size: 14px;">
+                            Kelola daftar katalog Material ID dan Nama Komponen untuk auto-complete nama saat scan input dan output mesin.
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span class="master-header-badge">&#128274; Akses Superadmin</span>
+                        <span class="master-badge-count" id="totalMasterBadge">Memuat data...</span>
+                    </div>
+                </div>
+
+                <!-- Card: Import & Export Excel -->
+                <div class="card" style="border-top: 4px solid #2563eb;">
+                    <div class="card-header" style="margin-bottom: 12px;">
+                        <h2 class="card-title" style="font-size: 17px; display: flex; align-items: center; gap: 8px;">
+                            <span>&#128229;</span> Import &amp; Export Excel
+                        </h2>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="exportMasterExcel()" id="exportExcelBtn" style="padding: 6px 14px; font-size: 13px;">
+                            &#128228; Export ke Excel (.xlsx)
+                        </button>
+                    </div>
+
+                    <!-- Rule Note Box -->
+                    <div class="rule-note">
+                        <span style="font-size: 18px;">&#128161;</span>
+                        <div>
+                            <strong>Aturan Auto-Update Import Excel:</strong>
+                            Jika file Excel yang Anda impor memuat <em>Material ID</em> yang sudah pernah ada di database, sistem akan <strong>secara otomatis memperbarui (auto-update)</strong> nama material tersebut dengan data yang ada di Excel tanpa menyebabkan duplikasi. Baris baru yang belum terdaftar akan langsung ditambahkan.
+                        </div>
+                    </div>
+
+                    <!-- Upload Form -->
+                    <form id="masterUploadForm" class="excel-box" onsubmit="handleUploadExcel(event)">
+                        <div class="excel-upload-group">
+                            <label for="masterFileInput" style="font-weight: 600; font-size: 13px; color: var(--dark-text); white-space: nowrap;">
+                                File Excel Master:
+                            </label>
+                            <input type="file" id="masterFileInput" accept=".xlsx, .xls" required>
+                            <button type="submit" class="btn btn-primary btn-sm" id="uploadSubmitBtn" style="width: auto; padding: 8px 16px;">
+                                &#128229; Upload &amp; Update Excel
+                            </button>
+                        </div>
+                        <div style="font-size: 12px; color: var(--light-text);">
+                            Format kolom: <strong>Kolom 1 (Material ID)</strong> &bull; <strong>Kolom 2 (Material Name)</strong>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Card: Master Data Table & Manual CRUD -->
+                <div class="card">
+                    <div class="toolbar-flex">
+                        <!-- Search Box -->
+                        <div class="search-group">
+                            <input 
+                                type="text" 
+                                id="masterSearchInput" 
+                                class="form-input search-input" 
+                                placeholder="Cari Material ID atau Nama..." 
+                                style="max-width: 320px;"
+                            >
+                            <button type="button" class="btn btn-primary btn-sm" onclick="searchMaster(1)" style="width: auto;">
+                                &#128269; Cari
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="resetSearchMaster()" style="width: auto;">
+                                Reset
+                            </button>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="actions-group">
+                            <button type="button" class="btn btn-primary btn-sm" onclick="openAddModal()" style="width: auto; background: #16a34a; border-color: #16a34a;">
+                                &#10133; Tambah Material Manual
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="loadMasterData(currentMasterPage)" title="Segarkan Data">
+                                &#128260; Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Data Table -->
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;">#</th>
+                                    <th style="width: 200px;">Material ID</th>
+                                    <th>Nama Material</th>
+                                    <th style="width: 180px;">Terakhir Diperbarui</th>
+                                    <th style="width: 150px; text-align: right;">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="masterTableBody">
+                                <tr>
+                                    <td colspan="5" style="text-align: center; padding: 36px;">
+                                        <div class="spinner"></div>
+                                        <p style="margin-top: 10px; color: var(--light-text); font-size: 13px;">Memuat data master material...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; padding-top: 14px; border-top: 1px solid #f1f5f9;">
+                        <div id="masterPageInfo" style="font-size: 13px; color: var(--light-text); font-weight: 500;">
+                            Menampilkan 0 data
+                        </div>
+                        <div class="pagination" id="masterPagination" style="margin-top: 0;"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL: TAMBAH MATERIAL MANUAL -->
+    <div class="modal" id="addMaterialModal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: var(--dark-text);">
+                    &#10133; Tambah Material Master Manual
+                </h3>
+                <button type="button" onclick="closeAddModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--light-text);">&times;</button>
+            </div>
+            <form id="addMaterialForm" onsubmit="submitAddMaterial(event)">
+                <div class="modal-body">
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="addMaterialId" style="display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px;">
+                            Material ID <span style="color: #dc2626;">*</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            id="addMaterialId" 
+                            class="form-input" 
+                            placeholder="Contoh: 2010101620" 
+                            required 
+                            style="font-family: 'Courier New', monospace; font-weight: 600;"
+                        >
+                        <small style="color: var(--light-text); font-size: 11px;">Harus unik, huruf/angka sesuai barcode komponen.</small>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 8px;">
+                        <label for="addMaterialName" style="display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px;">
+                            Nama Material <span style="color: #dc2626;">*</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            id="addMaterialName" 
+                            class="form-input" 
+                            placeholder="Contoh: Resistor 5% 1/16W" 
+                            required
+                        >
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="closeAddModal()" style="width: auto;">
+                        Batal
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-sm" id="saveAddBtn" style="width: auto; background: #16a34a;">
+                        &#128190; Simpan Material
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: EDIT MATERIAL MANUAL -->
+    <div class="modal" id="editMaterialModal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: var(--dark-text);">
+                    &#9999;&#65039; Edit Master Material
+                </h3>
+                <button type="button" onclick="closeEditModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--light-text);">&times;</button>
+            </div>
+            <form id="editMaterialForm" onsubmit="submitEditMaterial(event)">
+                <input type="hidden" id="editOriginalId">
+                <div class="modal-body">
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="editMaterialId" style="display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px;">
+                            Material ID <span style="color: #dc2626;">*</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            id="editMaterialId" 
+                            class="form-input" 
+                            required 
+                            style="font-family: 'Courier New', monospace; font-weight: 600;"
+                        >
+                    </div>
+                    <div class="form-group" style="margin-bottom: 8px;">
+                        <label for="editMaterialName" style="display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px;">
+                            Nama Material <span style="color: #dc2626;">*</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            id="editMaterialName" 
+                            class="form-input" 
+                            required
+                        >
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="closeEditModal()" style="width: auto;">
+                        Batal
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-sm" id="saveEditBtn" style="width: auto;">
+                        &#128190; Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/utils.js"></script>
+    <script src="/js/session-timeout.js"></script>
+    <script src="/js/master-materials.js"></script>
+</body>
+
+</html>
