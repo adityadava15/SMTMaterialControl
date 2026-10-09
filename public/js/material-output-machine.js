@@ -1,6 +1,7 @@
 // Output Mesin Page Logic - Automated Detection per Meter Type via LAN & Samsung/Hanwha Directory Watcher
 
 let currentFeed = [];
+let currentStats = null;
 let autoRefreshTimer = null;
 let lanInfoData = null;
 let currentHistoryPage = 1;
@@ -8,8 +9,105 @@ const HISTORY_LIMIT = 10;
 let currentHistorySort = 'desc';
 
 let isSuperAdminUser = false;
+let currentViewMode = 'grouped'; // 'grouped' or 'flat'
+let selectedMachineFilter = 'ALL'; // 'ALL', 'A1', 'A2', 'A3', 'B1', 'B2', 'UNASSIGNED'
 
-document.addEventListener('DOMContentLoaded', initMachinePage);
+// 5 Mesin Mounting SMT: Line A (3 mesin) & Line B (2 mesin)
+const SMT_MACHINE_DEFINITIONS = [
+    {
+        id: 'A1',
+        line: 'Line A',
+        machineNumber: 1,
+        brand: 'Hanwha',
+        folder: 'Pd Info/a1',
+        name: 'Line A - Mesin A1 (Hanwha)',
+        color: '#ea580c',
+        badgeBg: '#fff7ed',
+        badgeBorder: '#fdba74',
+        badgeText: '#c2410c'
+    },
+    {
+        id: 'A2',
+        line: 'Line A',
+        machineNumber: 2,
+        brand: 'Samsung',
+        folder: 'Pd Info/a2',
+        name: 'Line A - Mesin A2 (Samsung)',
+        color: '#2563eb',
+        badgeBg: '#eff6ff',
+        badgeBorder: '#bfdbfe',
+        badgeText: '#1d4ed8'
+    },
+    {
+        id: 'A3',
+        line: 'Line A',
+        machineNumber: 3,
+        brand: 'Samsung',
+        folder: 'Pd Info/a3',
+        name: 'Line A - Mesin A3 (Samsung)',
+        color: '#2563eb',
+        badgeBg: '#eff6ff',
+        badgeBorder: '#bfdbfe',
+        badgeText: '#1d4ed8'
+    },
+    {
+        id: 'B1',
+        line: 'Line B',
+        machineNumber: 1,
+        brand: 'Samsung',
+        folder: 'Pd Info/b1',
+        name: 'Line B - Mesin B1 (Samsung)',
+        color: '#4f46e5',
+        badgeBg: '#eef2ff',
+        badgeBorder: '#c7d2fe',
+        badgeText: '#4338ca'
+    },
+    {
+        id: 'B2',
+        line: 'Line B',
+        machineNumber: 2,
+        brand: 'Samsung',
+        folder: 'Pd Info/b2',
+        name: 'Line B - Mesin B2 (Samsung)',
+        color: '#4f46e5',
+        badgeBg: '#eef2ff',
+        badgeBorder: '#c7d2fe',
+        badgeText: '#4338ca'
+    }
+];
+
+function getMachineDef(machineId) {
+    return SMT_MACHINE_DEFINITIONS.find(m => m.id === String(machineId).toUpperCase()) || null;
+}
+
+function switchViewMode(mode) {
+    // Retained for backward compatibility
+}
+
+function filterByMachine(machineId) {
+    selectedMachineFilter = machineId;
+
+    const pills = document.querySelectorAll('#machineNavPills .machine-filter-pill');
+    pills.forEach(pill => {
+        const pMachine = pill.dataset.machine;
+        if (pMachine === machineId) {
+            pill.className = 'machine-filter-pill active shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer bg-[#091540] text-white border-[#091540]';
+            const counter = pill.querySelector('span:last-child');
+            if (counter) {
+                counter.className = 'ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-white/20 text-white font-mono';
+            }
+        } else {
+            pill.className = 'machine-filter-pill shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition cursor-pointer';
+            const counter = pill.querySelector('span:last-child');
+            if (counter) {
+                counter.className = 'ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-slate-100 text-slate-700 font-mono';
+            }
+        }
+    });
+
+    renderFeedTable(currentFeed, currentStats);
+    if (window.lucide) lucide.createIcons();
+}
 
 async function initMachinePage() {
     const user = await checkAuth();
@@ -432,17 +530,14 @@ function renderProcessedLogsTable(items) {
 // ========== LOAD MACHINE FEED ==========
 
 async function loadMachineFeed(isSilent = false) {
-    const feedBody = document.getElementById('machineFeedBody');
-    if (!feedBody) return;
+    const feedContainer = document.getElementById('machineFeedContainer');
 
-    if (!isSilent) {
-        feedBody.innerHTML = `
-            <tr>
-                <td colspan="8" style="text-align: center; padding: 40px;">
-                    <div class="spinner"></div>
-                    <p style="margin-top: 10px; color: var(--light-text); font-size: 13px;">Memuat data pemakaian material mesin...</p>
-                </td>
-            </tr>
+    if (!isSilent && feedContainer) {
+        feedContainer.innerHTML = `
+            <div class="text-center py-10 bg-white rounded-xl border border-slate-200 shadow-xs">
+                <div class="spinner"></div>
+                <p class="mt-2 text-xs text-slate-400">Memuat data komponen mesin...</p>
+            </div>
         `;
     }
 
@@ -455,7 +550,7 @@ async function loadMachineFeed(isSilent = false) {
             search: searchInput ? searchInput.value.trim() : '',
             meterType: meterTypeFilter ? meterTypeFilter.value : '',
             status: statusFilter ? statusFilter.value : '',
-            limit: 50
+            limit: 100
         });
 
         const response = await fetch(`/api/machine-output/feed?${params.toString()}`);
@@ -463,26 +558,26 @@ async function loadMachineFeed(isSilent = false) {
 
         if (response.ok && result.success) {
             currentFeed = result.data || [];
-            updateSummaryCards(result.stats);
-            renderFeedTable(currentFeed);
+            currentStats = result.stats || {};
+            updateSummaryCards(currentStats);
+            updatePillCounts(currentStats, currentFeed);
+            renderFeedTable(currentFeed, currentStats);
         } else {
-            feedBody.innerHTML = `
-                <tr>
-                    <td colspan="8" style="text-align: center; padding: 30px; color: var(--danger-color);">
+            if (feedContainer) {
+                feedContainer.innerHTML = `
+                    <div class="text-center py-8 bg-white rounded-xl border border-red-200 text-red-600 text-xs shadow-xs">
                         Gagal memuat data output mesin
-                    </td>
-                </tr>
-            `;
+                    </div>
+                `;
+            }
         }
     } catch (error) {
         console.error('Load machine feed error:', error);
-        if (!isSilent) {
-            feedBody.innerHTML = `
-                <tr>
-                    <td colspan="8" style="text-align: center; padding: 30px; color: var(--danger-color);">
-                        Terjadi kesalahan koneksi server
-                    </td>
-                </tr>
+        if (!isSilent && feedContainer) {
+            feedContainer.innerHTML = `
+                <div class="text-center py-8 bg-white rounded-xl border border-red-200 text-red-600 text-xs shadow-xs">
+                    Terjadi kesalahan koneksi server
+                </div>
             `;
         }
     }
@@ -502,33 +597,137 @@ function updateSummaryCards(stats) {
     if (meterTypesCountEl) meterTypesCountEl.textContent = `${stats.activeMeterTypesCount || 0} Type Meter`;
 }
 
-function renderFeedTable(items) {
-    const feedBody = document.getElementById('machineFeedBody');
-    if (!feedBody) return;
+function updatePillCounts(stats, items) {
+    const total = items ? items.length : 0;
+    const counts = (stats && stats.machineCounts) || {};
+
+    const elAll = document.getElementById('pillCountAll');
+    const elA1 = document.getElementById('pillCountA1');
+    const elA2 = document.getElementById('pillCountA2');
+    const elA3 = document.getElementById('pillCountA3');
+    const elB1 = document.getElementById('pillCountB1');
+    const elB2 = document.getElementById('pillCountB2');
+    const elUnassigned = document.getElementById('pillCountUnassigned');
+
+    if (elAll) elAll.textContent = total;
+    if (elA1) elA1.textContent = counts.A1 || 0;
+    if (elA2) elA2.textContent = counts.A2 || 0;
+    if (elA3) elA3.textContent = counts.A3 || 0;
+    if (elB1) elB1.textContent = counts.B1 || 0;
+    if (elB2) elB2.textContent = counts.B2 || 0;
+    if (elUnassigned) elUnassigned.textContent = counts.UNASSIGNED || 0;
+}
+
+// ========== RENDER FEED TABLE ==========
+
+function renderFeedTable(items, stats) {
+    const container = document.getElementById('machineFeedContainer');
+    if (!container) return;
 
     if (!items || items.length === 0) {
-        feedBody.innerHTML = `
-            <tr>
-                <td colspan="8" style="text-align: center; padding: 45px; color: var(--light-text);">
-                    <div style="font-size: 36px; margin-bottom: 8px;">📦</div>
-                    <strong>Belum ada material dari Output Stok</strong>
-                    <p style="font-size: 13px; margin: 4px 0 0 0; opacity: 0.85;">
-                        Material yang dikeluarkan di halaman <strong>Output Stok</strong> akan otomatis tampil di sini dan siap dideteksi pemakaiannya per type meter.
-                    </p>
-                </td>
-            </tr>
+        container.innerHTML = `
+            <div class="rounded-xl border border-slate-200 bg-white p-10 text-center text-slate-500 shadow-xs">
+                <div class="text-4xl mb-2">📦</div>
+                <h3 class="text-sm font-bold text-slate-800">Belum ada material dari Output Stok</h3>
+                <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                    Material yang dikeluarkan di halaman <strong>Output Stok</strong> akan otomatis tampil di sini dan dikelompokkan sesuai mesin mounting Samsung &amp; Hanwha.
+                </p>
+            </div>
         `;
         return;
     }
 
-    feedBody.innerHTML = items.map((item, index) => {
+    // 1. JIKA TAB 'SEMUA MESIN': CUKUP 1 CARD AJA DENGAN KOLOM 'LINI / MESIN'
+    if (selectedMachineFilter === 'ALL') {
+        renderAllMachinesSingleCard(container, items, stats);
+        return;
+    }
+
+    // 2. JIKA TAB 'ANTRIAN STOK' (BELUM MASUK MESIN)
+    if (selectedMachineFilter === 'UNASSIGNED') {
+        renderUnassignedCard(container, items);
+        return;
+    }
+
+    // 3. JIKA TAB MESIN TERTENTU (A1, A2, A3, B1, B2)
+    renderSingleMachineCard(container, items, selectedMachineFilter);
+}
+
+// 1 CARD TUNGGAL UNTUK TAB 'SEMUA MESIN' (DENGAN KOLOM 'LINI / MESIN')
+function renderAllMachinesSingleCard(container, items, stats) {
+    const totalMasuk = items.reduce((acc, it) => acc + (Number(it.totalMasukMesin) || 0), 0);
+    const totalTerpakai = items.reduce((acc, it) => acc + (Number(it.totalTerpakaiMesin) || 0), 0);
+    const totalSisa = items.reduce((acc, it) => acc + (Number(it.sisaKomponenMesin) || 0), 0);
+
+    container.innerHTML = `
+        <div class="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+            <!-- Header Banner 1 Card Semua Mesin -->
+            <div class="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/80 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <span class="w-3.5 h-3.5 rounded-full bg-blue-700 shrink-0 shadow-xs"></span>
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h3 class="text-sm sm:text-base font-bold text-slate-900">Semua Mesin SMT (Line A &amp; Line B)</h3>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase bg-blue-50 text-blue-700 border border-blue-200">
+                                5 MESIN + ANTRIAN
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5">
+                            Menampilkan seluruh komponen pada 5 mesin mounting (Line A1 Hanwha, A2-A3 Samsung, B1-B2 Samsung)
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap text-xs shrink-0">
+                    <span class="px-2.5 py-1 rounded-md bg-white border border-slate-200 font-semibold text-slate-700 shadow-2xs">
+                        ${items.length} Komponen
+                    </span>
+                    <span class="px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 font-bold border border-blue-100">
+                        Masuk: ${formatNumber(totalMasuk)} pcs
+                    </span>
+                    <span class="px-2.5 py-1 rounded-md bg-red-50 text-red-700 font-bold border border-red-100">
+                        Terpakai: ${formatNumber(totalTerpakai)} pcs
+                    </span>
+                    <span class="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 font-bold border border-emerald-100">
+                        Sisa: ${formatNumber(totalSisa)} pcs
+                    </span>
+                </div>
+            </div>
+
+            <!-- Tabel 1 Card dengan Kolom 'Lini / Mesin' -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs text-left">
+                    <thead class="bg-slate-50/60 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+                        <tr>
+                            <th class="py-2.5 px-3 w-9">#</th>
+                            <th class="py-2.5 px-3 w-[160px]">Lini / Mesin</th>
+                            <th class="py-2.5 px-3 w-[120px]">Status Feeder</th>
+                            <th class="py-2.5 px-3">Material ID &amp; Spesifikasi</th>
+                            <th class="py-2.5 px-3">Total Masuk (Stok)</th>
+                            <th class="py-2.5 px-3 min-w-[200px]">Rincian Pemakaian per Type Meter</th>
+                            <th class="py-2.5 px-3">Total Terpakai</th>
+                            <th class="py-2.5 px-3">Sisa Feeder</th>
+                            <th class="py-2.5 px-3 text-right w-[150px]">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        ${renderAllMachinesTableRows(items)}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+}
+
+// Render baris untuk tabel 1 card 'Semua Mesin'
+function renderAllMachinesTableRows(items) {
+    return items.map((item, index) => {
         const breakdowns = item.meterBreakdown || [];
 
-        // Build meter type badges
         let meterBadgesHtml = '';
         if (breakdowns.length === 0) {
             meterBadgesHtml = `
-                <span style="font-size: 12px; color: #9ca3af; font-style: italic;">
+                <span style="font-size: 11px; color: #9ca3af; font-style: italic;">
                     Belum ada pemakaian (Reel Utuh)
                 </span>
             `;
@@ -540,71 +739,387 @@ function renderFeedTable(items) {
                     : 0;
 
                 return `
-                    <div style="display: inline-flex; align-items: center; gap: 6px; background: ${badgeColor.bg}; border: 1px solid ${badgeColor.border}; color: ${badgeColor.text}; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; margin: 2px 4px 2px 0;">
+                    <div style="display: inline-flex; align-items: center; gap: 4px; background: ${badgeColor.bg}; border: 1px solid ${badgeColor.border}; color: ${badgeColor.text}; padding: 2px 7px; border-radius: 5px; font-size: 11px; font-weight: 600; margin: 2px 4px 2px 0;">
                         <span>🏷️ ${escapeHtml(b.meterType)}:</span>
                         <strong style="color: ${badgeColor.strong};">${formatNumber(b.usedQuantity)} pcs</strong>
-                        <span style="opacity: 0.7; font-size: 11px;">(${percent}%)</span>
+                        <span style="opacity: 0.7; font-size: 10px;">(${percent}%)</span>
                     </div>
                 `;
             }).join('');
         }
 
-        // Progress bar for total used vs remaining
         const percent = item.persentaseTerpakai || 0;
         let progressColor = '#10b981';
         if (percent >= 100) progressColor = '#ef4444';
         else if (percent >= 80) progressColor = '#f59e0b';
 
+        // Kolom Lini / Mesin (menampilkan mesin mananya dengan jelas)
+        const machineMeta = getMachineDef(item.machineId);
+        let machineCellHtml = '';
+        if (machineMeta) {
+            machineCellHtml = `
+                <div>
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold" style="background: ${machineMeta.badgeBg}; border: 1px solid ${machineMeta.badgeBorder}; color: ${machineMeta.badgeText}; white-space: nowrap;">
+                        <span class="w-2 h-2 rounded-full" style="background: ${machineMeta.color};"></span>
+                        <span>${escapeHtml(machineMeta.line)} • ${machineMeta.id}</span>
+                        <span class="text-[10px] opacity-80">(${machineMeta.brand})</span>
+                    </span>
+                    <div class="text-[10px] text-slate-400 font-mono mt-0.5" title="Folder log: ${escapeHtml(machineMeta.folder)}">
+                        📁 ${escapeHtml(machineMeta.folder)}
+                    </div>
+                </div>
+            `;
+        } else {
+            machineCellHtml = `
+                <div>
+                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 whitespace-nowrap">
+                        <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                        <span>Antrian Stok</span>
+                    </span>
+                    <div class="text-[10px] text-amber-600 font-medium mt-0.5">Belum di mesin</div>
+                </div>
+            `;
+        }
+
+        const itemTitleEscaped = escapeSingleQuote(item.specification || item.materialName || item.materialId);
+
         return `
-            <tr>
-                <td style="color: var(--light-text); font-size: 13px;">${index + 1}</td>
+            <tr class="hover:bg-slate-50/70 transition-colors">
+                <td style="color: var(--light-text); font-size: 12px; font-weight: 500;">${index + 1}</td>
+                <td>${machineCellHtml}</td>
                 <td>
-                    <span class="badge" style="background: ${item.statusColor}; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap;">
+                    <span class="badge" style="background: ${item.statusColor}; color: white; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap;">
                         ${item.statusLabel}
                     </span>
                 </td>
                 <td>
-                    <div style="font-family: 'Courier New', monospace; font-weight: 700; color: #1e40af; font-size: 14px;">
-                        ${escapeHtml(item.materialId)}
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <span style="font-family: 'Courier New', monospace; font-weight: 700; color: #1e40af; font-size: 13px;">
+                            ${escapeHtml(item.materialId)}
+                        </span>
+                        ${item.rid ? `<span class="badge" style="background-color: #dbeafe; color: #1e40af; font-size: 10px; padding: 1px 5px; border-radius: 4px; font-family: monospace; font-weight: 600;">RID: ${escapeHtml(item.rid)}</span>` : ''}
                     </div>
-                    <div style="font-size: 13px; font-weight: 600; color: var(--dark-text); margin-top: 2px;">
-                        ${escapeHtml(item.materialName)}
+                    <div style="font-size: 12px; font-weight: 600; color: var(--dark-text); margin-top: 2px;">
+                        ${escapeHtml(item.specification || item.materialName)}
                     </div>
                 </td>
-                <td style="font-weight: 700; font-size: 14px; color: #1e3a8a;">
+                <td style="font-weight: 700; font-size: 13px; color: #1e3a8a;">
                     ${formatNumber(item.totalMasukMesin)} pcs
-                    <div style="font-size: 11px; font-weight: normal; color: var(--light-text); margin-top: 2px;">
-                        Keluar Stok: ${formatDateTime(item.stokOutputTime)} (${escapeHtml(item.stokOperator || '-')})
+                    <div style="font-size: 10px; font-weight: normal; color: var(--light-text); margin-top: 2px;">
+                        Stok: ${formatDateTime(item.stokOutputTime)} (${escapeHtml(item.stokOperator || '-')})
                     </div>
                 </td>
-                <td style="min-width: 240px;">
-                    <div style="margin-bottom: 6px;">
+                <td>
+                    <div style="margin-bottom: 5px;">
                         ${meterBadgesHtml}
                     </div>
-                    <div style="background: #e2e8f0; border-radius: 6px; height: 8px; overflow: hidden; width: 100%;">
+                    <div style="background: #e2e8f0; border-radius: 6px; height: 6px; overflow: hidden; width: 100%;">
                         <div style="background: ${progressColor}; width: ${percent}%; height: 100%; transition: width 0.3s ease;"></div>
                     </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--light-text); margin-top: 3px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--light-text); margin-top: 2px;">
                         <span>Terpakai: ${percent}%</span>
                         <span>Sisa: ${100 - percent}%</span>
                     </div>
                 </td>
-                <td style="font-weight: 700; font-size: 14px; color: #b91c1c; white-space: nowrap;">
+                <td style="font-weight: 700; font-size: 13px; color: #b91c1c; white-space: nowrap;">
                     ${formatNumber(item.totalTerpakaiMesin)} pcs
                 </td>
-                <td style="font-weight: 700; font-size: 14px; color: #15803d; white-space: nowrap;">
+                <td style="font-weight: 700; font-size: 13px; color: #15803d; white-space: nowrap;">
                     ${formatNumber(item.sisaKomponenMesin)} pcs
                 </td>
                 <td style="text-align: right; white-space: nowrap;">
-                    <button 
-                        type="button" 
-                        class="btn btn-primary btn-sm" 
-                        style="padding: 5px 10px; font-size: 12px; background: #0284c7;"
-                        onclick="openSimulateModal('${escapeSingleQuote(item.materialId)}', '${escapeSingleQuote(item.materialName)}', ${item.sisaKomponenMesin}, ${item.transactionId})"
-                        title="Simulasi Deteksi Pemakaian LAN"
-                    >
-                        ⚡ Input Deteksi
-                    </button>
+                    <div style="display: inline-flex; align-items: center; gap: 4px;">
+                        <button 
+                            type="button" 
+                            class="btn btn-primary btn-sm" 
+                            style="padding: 4px 8px; font-size: 11px; background: #0284c7;"
+                            onclick="openTestFolderModal('${item.machineId || ''}')"
+                            title="Uji koneksi ke folder Pd Info mesin ini"
+                        >
+                            🔍 Tes Pd Info
+                        </button>
+                        ${isSuperAdminUser ? `
+                        <button 
+                            type="button" 
+                            class="btn btn-secondary btn-sm" 
+                            style="padding: 4px 8px; font-size: 11px;"
+                            onclick="openAssignMachineModal(${item.transactionId}, '${escapeSingleQuote(item.materialId)}', '${itemTitleEscaped}', '${item.machineId || ''}')"
+                            title="Pindah / Tugaskan ke Mesin SMT Lain (Khusus Superadmin)"
+                        >
+                            🔄 Mesin
+                        </button>
+                        ` : ''}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Render card tunggal untuk tab mesin spesifik (A1, A2, A3, B1, B2)
+function renderSingleMachineCard(container, items, machineId) {
+    const m = getMachineDef(machineId);
+    if (!m) return;
+
+    const machineItems = items.filter(it => it.machineId === m.id);
+    const totalMasuk = machineItems.reduce((acc, it) => acc + (Number(it.totalMasukMesin) || 0), 0);
+    const totalTerpakai = machineItems.reduce((acc, it) => acc + (Number(it.totalTerpakaiMesin) || 0), 0);
+    const totalSisa = machineItems.reduce((acc, it) => acc + (Number(it.sisaKomponenMesin) || 0), 0);
+
+    let tableContent = '';
+    if (machineItems.length === 0) {
+        tableContent = `
+            <div class="p-8 text-center bg-white text-slate-400">
+                <p class="text-xs font-medium text-slate-600">Belum ada komponen di feeder ${m.name}</p>
+                <p class="text-[11px] text-slate-400 mt-1">
+                    Komponen dari <strong>Output Stok</strong> yang terdeteksi di log folder <code class="font-mono text-slate-700 bg-slate-100 px-1 py-0.5 rounded">${m.folder}</code> atau ditugaskan manual akan otomatis tampil di sini.
+                </p>
+            </div>
+        `;
+    } else {
+        tableContent = `
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs text-left">
+                    <thead class="bg-slate-50/50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+                        <tr>
+                            <th class="py-2.5 px-3 w-9">#</th>
+                            <th class="py-2.5 px-3 w-[130px]">Status Feeder</th>
+                            <th class="py-2.5 px-3">Material ID &amp; Spesifikasi</th>
+                            <th class="py-2.5 px-3">Total Masuk (Stok)</th>
+                            <th class="py-2.5 px-3 min-w-[220px]">Rincian Pemakaian per Type Meter</th>
+                            <th class="py-2.5 px-3">Total Terpakai</th>
+                            <th class="py-2.5 px-3">Sisa Feeder</th>
+                            <th class="py-2.5 px-3 text-right w-[160px]">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        ${renderItemRows(machineItems, m.id)}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    container.innerHTML = `
+        <div class="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden transition-all duration-200">
+            <!-- Machine Section Header Banner -->
+            <div class="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/80 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <span class="w-3.5 h-3.5 rounded-full shrink-0 shadow-xs" style="background: ${m.color}"></span>
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h3 class="text-sm sm:text-base font-bold text-slate-900">${m.name}</h3>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase" style="background: ${m.badgeBg}; border: 1px solid ${m.badgeBorder}; color: ${m.badgeText};">
+                                ${m.brand}
+                            </span>
+                            <span class="text-[11px] font-mono font-medium text-slate-600 bg-white px-2.5 py-0.5 rounded border border-slate-200 shadow-2xs" title="Folder share/lokal tempat file log mesin ditaruh">
+                                📁 ${m.folder}
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5">
+                            Pemotongan komponen otomatis memantau file <span class="font-mono text-slate-700 font-semibold">.log</span> dari folder ini
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap text-xs shrink-0">
+                    <span class="px-2.5 py-1 rounded-md bg-white border border-slate-200 font-semibold text-slate-700 shadow-2xs">
+                        ${machineItems.length} Komponen
+                    </span>
+                    <span class="px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 font-bold border border-blue-100">
+                        Masuk: ${formatNumber(totalMasuk)} pcs
+                    </span>
+                    <span class="px-2.5 py-1 rounded-md bg-red-50 text-red-700 font-bold border border-red-100">
+                        Terpakai: ${formatNumber(totalTerpakai)} pcs
+                    </span>
+                    <span class="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 font-bold border border-emerald-100">
+                        Sisa: ${formatNumber(totalSisa)} pcs
+                    </span>
+                </div>
+            </div>
+
+            ${tableContent}
+        </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+}
+
+// Render card tunggal untuk tab 'Antrian Stok' (UNASSIGNED)
+function renderUnassignedCard(container, items) {
+    const unassignedItems = items.filter(it => !it.machineId || it.machineId === 'UNASSIGNED');
+    const totalMasuk = unassignedItems.reduce((acc, it) => acc + (Number(it.totalMasukMesin) || 0), 0);
+    const totalTerpakai = unassignedItems.reduce((acc, it) => acc + (Number(it.totalTerpakaiMesin) || 0), 0);
+    const totalSisa = unassignedItems.reduce((acc, it) => acc + (Number(it.sisaKomponenMesin) || 0), 0);
+
+    let tableContent = '';
+    if (unassignedItems.length === 0) {
+        tableContent = `
+            <div class="p-8 text-center text-slate-400 bg-white">
+                <p class="text-xs">Tidak ada komponen dalam antrian. Semua komponen sudah terpasang di 5 mesin SMT.</p>
+            </div>
+        `;
+    } else {
+        tableContent = `
+            <div class="overflow-x-auto bg-white">
+                <table class="w-full text-xs text-left">
+                    <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+                        <tr>
+                            <th class="py-2.5 px-3 w-9">#</th>
+                            <th class="py-2.5 px-3 w-[130px]">Status Feeder</th>
+                            <th class="py-2.5 px-3">Material ID &amp; Spesifikasi</th>
+                            <th class="py-2.5 px-3">Total Masuk (Stok)</th>
+                            <th class="py-2.5 px-3 min-w-[220px]">Rincian Pemakaian per Type Meter</th>
+                            <th class="py-2.5 px-3">Total Terpakai</th>
+                            <th class="py-2.5 px-3">Sisa Feeder</th>
+                            <th class="py-2.5 px-3 text-right w-[160px]">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        ${renderItemRows(unassignedItems, '')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    container.innerHTML = `
+        <div class="rounded-xl border border-dashed border-amber-300 bg-amber-50/30 shadow-xs overflow-hidden">
+            <div class="p-4 sm:p-5 border-b border-amber-200 bg-amber-50/60 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <span class="w-3.5 h-3.5 rounded-full bg-amber-400 shrink-0"></span>
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h3 class="text-sm sm:text-base font-bold text-amber-950">Antrian Material (Belum Masuk Mesin)</h3>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                MENUNGGU LOG MESIN / PENUGASAN
+                            </span>
+                        </div>
+                        <p class="text-xs text-amber-700/80 mt-0.5">
+                            Material baru dikeluarkan dari Output Stok. Sistem akan otomatis menugaskan mesin saat membaca log <span class="font-mono font-semibold">.log</span> atau Anda dapat menugaskannya manual dengan tombol <strong>🔄 Mesin</strong>.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap text-xs shrink-0">
+                    <span class="px-2.5 py-1 rounded-md bg-white border border-amber-200 font-semibold text-amber-800">
+                        ${unassignedItems.length} Komponen
+                    </span>
+                    <span class="px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 font-bold border border-blue-100">
+                        Masuk: ${formatNumber(totalMasuk)} pcs
+                    </span>
+                    <span class="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 font-bold border border-emerald-100">
+                        Sisa: ${formatNumber(totalSisa)} pcs
+                    </span>
+                </div>
+            </div>
+
+            ${tableContent}
+        </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+}
+
+// Render baris untuk tabel spesifik per mesin
+function renderItemRows(items, defaultMachineId) {
+    return items.map((item, index) => {
+        const breakdowns = item.meterBreakdown || [];
+
+        let meterBadgesHtml = '';
+        if (breakdowns.length === 0) {
+            meterBadgesHtml = `
+                <span style="font-size: 11px; color: #94a3b8; font-style: italic;">
+                    Belum ada pemakaian (Reel Utuh)
+                </span>
+            `;
+        } else {
+            meterBadgesHtml = breakdowns.map(b => {
+                const badgeColor = getMeterColor(b.meterType);
+                const percent = item.totalMasukMesin > 0 
+                    ? Math.round((b.usedQuantity / item.totalMasukMesin) * 100) 
+                    : 0;
+
+                return `
+                    <div style="display: inline-flex; align-items: center; gap: 4px; background: ${badgeColor.bg}; border: 1px solid ${badgeColor.border}; color: ${badgeColor.text}; padding: 2px 7px; border-radius: 5px; font-size: 11px; font-weight: 600; margin: 2px 4px 2px 0;">
+                        <span>🏷️ ${escapeHtml(b.meterType)}:</span>
+                        <strong style="color: ${badgeColor.strong};">${formatNumber(b.usedQuantity)} pcs</strong>
+                        <span style="opacity: 0.7; font-size: 10px;">(${percent}%)</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        const percent = item.persentaseTerpakai || 0;
+        let progressColor = '#10b981';
+        if (percent >= 100) progressColor = '#ef4444';
+        else if (percent >= 80) progressColor = '#f59e0b';
+
+        const effectiveMachineId = item.machineId || defaultMachineId || '';
+        const itemTitleEscaped = escapeSingleQuote(item.specification || item.materialName || item.materialId);
+
+        return `
+            <tr class="hover:bg-slate-50/70 transition-colors">
+                <td style="color: var(--light-text); font-size: 12px; font-weight: 500;">${index + 1}</td>
+                <td>
+                    <span class="badge" style="background: ${item.statusColor}; color: white; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap;">
+                        ${item.statusLabel}
+                    </span>
+                </td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <span style="font-family: 'Courier New', monospace; font-weight: 700; color: #1e40af; font-size: 13px;">
+                            ${escapeHtml(item.materialId)}
+                        </span>
+                        ${item.rid ? `<span class="badge" style="background-color: #dbeafe; color: #1e40af; font-size: 10px; padding: 1px 5px; border-radius: 4px; font-family: monospace; font-weight: 600;">RID: ${escapeHtml(item.rid)}</span>` : ''}
+                    </div>
+                    <div style="font-size: 12px; font-weight: 600; color: var(--dark-text); margin-top: 2px;">
+                        ${escapeHtml(item.specification || item.materialName)}
+                    </div>
+                </td>
+                <td style="font-weight: 700; font-size: 13px; color: #1e3a8a;">
+                    ${formatNumber(item.totalMasukMesin)} pcs
+                    <div style="font-size: 10px; font-weight: normal; color: var(--light-text); margin-top: 2px;">
+                        Stok: ${formatDateTime(item.stokOutputTime)} (${escapeHtml(item.stokOperator || '-')})
+                    </div>
+                </td>
+                <td>
+                    <div style="margin-bottom: 5px;">
+                        ${meterBadgesHtml}
+                    </div>
+                    <div style="background: #e2e8f0; border-radius: 6px; height: 6px; overflow: hidden; width: 100%;">
+                        <div style="background: ${progressColor}; width: ${percent}%; height: 100%; transition: width 0.3s ease;"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--light-text); margin-top: 2px;">
+                        <span>Terpakai: ${percent}%</span>
+                        <span>Sisa: ${100 - percent}%</span>
+                    </div>
+                </td>
+                <td style="font-weight: 700; font-size: 13px; color: #b91c1c; white-space: nowrap;">
+                    ${formatNumber(item.totalTerpakaiMesin)} pcs
+                </td>
+                <td style="font-weight: 700; font-size: 13px; color: #15803d; white-space: nowrap;">
+                    ${formatNumber(item.sisaKomponenMesin)} pcs
+                </td>
+                <td style="text-align: right; white-space: nowrap;">
+                    <div style="display: inline-flex; align-items: center; gap: 4px;">
+                        <button 
+                            type="button" 
+                            class="btn btn-primary btn-sm" 
+                            style="padding: 4px 8px; font-size: 11px; background: #0284c7;"
+                            onclick="openTestFolderModal('${effectiveMachineId || item.machineId || ''}')"
+                            title="Uji koneksi ke folder Pd Info mesin ini"
+                        >
+                            🔍 Tes Pd Info
+                        </button>
+                        ${isSuperAdminUser ? `
+                        <button 
+                            type="button" 
+                            class="btn btn-secondary btn-sm" 
+                            style="padding: 4px 8px; font-size: 11px;"
+                            onclick="openAssignMachineModal(${item.transactionId}, '${escapeSingleQuote(item.materialId)}', '${itemTitleEscaped}', '${effectiveMachineId}')"
+                            title="Pindah / Tugaskan ke Mesin SMT Lain (Khusus Superadmin)"
+                        >
+                            🔄 Mesin
+                        </button>
+                        ` : ''}
+                    </div>
                 </td>
             </tr>
         `;
@@ -703,10 +1218,13 @@ function renderHistoryTable(items, pagination) {
                     ⏱️ ${formatDateTime(item.created_at)}
                 </td>
                 <td>
-                    <span style="font-family: 'Courier New', monospace; font-weight: 700; color: #1e3a8a;">
-                        ${escapeHtml(item.material_id)}
-                    </span>
-                    <div style="font-size: 12px; color: var(--light-text);">${escapeHtml(item.material_name)}</div>
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <span style="font-family: 'Courier New', monospace; font-weight: 700; color: #1e3a8a;">
+                            ${escapeHtml(item.material_id)}
+                        </span>
+                        ${item.rid ? `<span class="badge" style="background-color: #e0f2fe; color: #0369a1; font-size: 11px; padding: 1px 6px; border-radius: 3px; font-family: monospace; font-weight: 600;">RID: ${escapeHtml(item.rid)}</span>` : ''}
+                    </div>
+                    <div style="font-size: 12px; color: var(--light-text);">${escapeHtml(item.specification || item.material_name)}</div>
                 </td>
                 <td>
                     <span style="background: ${color.bg}; border: 1px solid ${color.border}; color: ${color.text}; font-weight: 700; font-size: 12px; padding: 3px 8px; border-radius: 4px;">
@@ -717,6 +1235,7 @@ function renderHistoryTable(items, pagination) {
                     -${formatNumber(item.used_quantity)} pcs
                 </td>
                 <td style="font-size: 12px; color: #475569;">
+                    ${item.machine_id ? `<span class="badge" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 10px; padding: 1px 5px; border-radius: 4px; font-weight: 700; margin-right: 4px;">${escapeHtml(item.line_id ? (item.line_id + ' ' + item.machine_id) : ('Mesin ' + item.machine_id))}</span>` : ''}
                     💻 ${escapeHtml(item.source_pc || 'PC Mesin')}
                     ${item.notes ? `<div style="font-size: 11px; color: #64748b; font-style: italic;">${escapeHtml(item.notes)}</div>` : ''}
                 </td>
@@ -824,85 +1343,226 @@ async function deleteHistoryItem(id) {
     }
 }
 
-// ========== SIMULATION / TEST DETECT MODAL ==========
+// ========== TEST MACHINE FOLDER CONNECTION MODAL ==========
 
-function openSimulateModal(materialId, materialName, remainingQty, transactionId) {
-    const modal = document.getElementById('simulateModal');
+let currentTestingMachineId = 'A1';
+
+async function openTestFolderModal(machineId) {
+    const modal = document.getElementById('testFolderModal');
     if (!modal) return;
 
-    document.getElementById('simMaterialId').value = materialId;
-    document.getElementById('simMaterialName').textContent = `${materialName} (${materialId})`;
-    document.getElementById('simRemainingPcs').textContent = `${formatNumber(remainingQty)} pcs`;
-    document.getElementById('simTransactionId').value = transactionId || '';
-
-    const qtyInput = document.getElementById('simUsedQuantity');
-    if (qtyInput) {
-        qtyInput.value = Math.min(1000, remainingQty > 0 ? remainingQty : 500);
-        qtyInput.max = remainingQty;
+    if (!machineId || machineId === 'UNASSIGNED') {
+        showToast('Material ini berada di antrian stok dan belum ditugaskan ke mesin tertentu. Klik tombol 🔄 Mesin untuk menugaskan.', 'info');
+        return;
     }
 
+    currentTestingMachineId = machineId;
     modal.style.display = 'flex';
+
+    const banner = document.getElementById('testConnStatusBanner');
+    const icon = document.getElementById('testConnIcon');
+    const title = document.getElementById('testConnTitle');
+    const msg = document.getElementById('testConnMessage');
+    const machineNameEl = document.getElementById('testConnMachineName');
+    const machineBrandEl = document.getElementById('testConnMachineBrand');
+    const folderPathEl = document.getElementById('testConnFolderPath');
+    const logCountEl = document.getElementById('testConnLogCount');
+    const latestLogEl = document.getElementById('testConnLatestLog');
+
+    // Reset to loading state
+    if (banner) {
+        banner.className = 'p-4 rounded-xl border flex items-start gap-3 bg-blue-50 border-blue-200';
+    }
+    if (icon) icon.textContent = '⏳';
+    if (title) title.textContent = `Memeriksa koneksi folder Pd Info (${machineId})...`;
+    if (msg) msg.textContent = 'Sedang memeriksa akses direktori dan file .log mesin...';
+    if (machineNameEl) machineNameEl.textContent = `Mesin ${machineId}`;
+    if (machineBrandEl) machineBrandEl.textContent = '-';
+    if (folderPathEl) folderPathEl.textContent = 'Menghubungkan...';
+    if (logCountEl) logCountEl.textContent = '-';
+    if (latestLogEl) latestLogEl.textContent = '-';
+
+    try {
+        const response = await fetch('/api/machine-output/test-machine-folder', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ machineId })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            if (machineNameEl) machineNameEl.textContent = data.machineName || `Mesin ${machineId}`;
+            if (machineBrandEl) machineBrandEl.textContent = data.brand || '-';
+            if (folderPathEl) folderPathEl.textContent = data.folderPath || '-';
+            if (logCountEl) logCountEl.textContent = `${data.logFilesCount || 0} file`;
+
+            if (data.latestLogFile) {
+                const fDate = new Date(data.latestLogFile.mtime).toLocaleString('id-ID');
+                const fSize = (data.latestLogFile.size / 1024).toFixed(1);
+                if (latestLogEl) latestLogEl.innerHTML = `<strong>${escapeHtml(data.latestLogFile.name)}</strong> (${fSize} KB)<br><span class="text-slate-400">${fDate}</span>`;
+            } else {
+                if (latestLogEl) latestLogEl.textContent = 'Belum ada file .log di folder ini';
+            }
+
+            if (data.reachable) {
+                if (banner) banner.className = 'p-4 rounded-xl border flex items-start gap-3 bg-emerald-50 border-emerald-200';
+                if (icon) icon.textContent = '🟢';
+                if (title) title.textContent = 'Terhubung! Folder Pd Info Dapat Diakses';
+                if (msg) msg.textContent = data.message || `Web berhasil membaca folder log mesin ${data.machineName}. Pemakaian komponen akan terdeteksi secara otomatis.`;
+            } else {
+                if (banner) banner.className = 'p-4 rounded-xl border flex items-start gap-3 bg-amber-50 border-amber-200';
+                if (icon) icon.textContent = '⚠️';
+                if (title) title.textContent = 'Folder Tidak Dapat Diakses / Offline';
+                if (msg) msg.textContent = data.message || `Folder Pd Info belum ditemukan atau belum dapat diakses oleh server web.`;
+            }
+        } else {
+            if (banner) banner.className = 'p-4 rounded-xl border flex items-start gap-3 bg-rose-50 border-rose-200';
+            if (icon) icon.textContent = '❌';
+            if (title) title.textContent = 'Gagal Memeriksa Folder';
+            if (msg) msg.textContent = data.error || 'Terjadi kesalahan saat memeriksa folder mesin.';
+        }
+    } catch (err) {
+        console.error('Error testing machine folder:', err);
+        if (banner) banner.className = 'p-4 rounded-xl border flex items-start gap-3 bg-rose-50 border-rose-200';
+        if (icon) icon.textContent = '❌';
+        if (title) title.textContent = 'Koneksi Gagal';
+        if (msg) msg.textContent = 'Tidak dapat menghubungi server web backend.';
+    }
 }
 
-function closeSimulateModal() {
-    const modal = document.getElementById('simulateModal');
+function closeTestFolderModal() {
+    const modal = document.getElementById('testFolderModal');
     if (modal) {
         modal.style.display = 'none';
     }
 }
 
-async function submitSimulateDetection(e) {
-    if (e) e.preventDefault();
-
-    const materialId = document.getElementById('simMaterialId').value;
-    const transactionId = document.getElementById('simTransactionId').value;
-    const meterType = document.getElementById('simMeterType').value;
-    const usedQty = parseInt(document.getElementById('simUsedQuantity').value, 10);
-    const sourcePc = document.getElementById('simSourcePc').value || 'PC Mesin SMT (LAN)';
-
-    if (!materialId || !meterType || isNaN(usedQty) || usedQty <= 0) {
-        showToast('Pastikan Material, Type Meter, dan Jumlah diisi dengan benar', 'warning');
-        return;
-    }
-
-    const submitBtn = document.getElementById('simSubmitBtn');
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Mengirim Sinyal LAN...';
+async function triggerScanFromModal() {
+    const scanBtn = document.getElementById('triggerScanModalBtn');
+    const originalText = scanBtn ? scanBtn.innerHTML : '';
+    if (scanBtn) {
+        scanBtn.disabled = true;
+        scanBtn.innerHTML = '<span class="animate-spin inline-block mr-1">⏳</span> Membaca Log...';
     }
 
     try {
-        const response = await fetch('/api/machine-output/detect-meter', {
+        const response = await fetch('/api/machine-output/watcher-scan', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success) {
+            showToast(data.message || 'Log berhasil diproses dan pemakaian diperbarui!', 'success');
+            await loadMachineFeed();
+            if (currentTestingMachineId) {
+                openTestFolderModal(currentTestingMachineId);
+            }
+        } else {
+            showToast(data.error || 'Gagal memindai log folder', 'error');
+        }
+    } catch (err) {
+        console.error('Watcher scan error:', err);
+        showToast('Terjadi kesalahan jaringan saat memindai log', 'error');
+    } finally {
+        if (scanBtn) {
+            scanBtn.disabled = false;
+            scanBtn.innerHTML = originalText;
+        }
+    }
+}
+
+// ========== ASSIGN / REASSIGN MACHINE MODAL ==========
+
+function openAssignMachineModal(transactionId, materialId, materialName, currentMachineId = '') {
+    if (!isSuperAdminUser) {
+        showToast('Akses dibatasi. Fitur penugasan mesin manual khusus Superadmin.', 'warning');
+        return;
+    }
+    const modal = document.getElementById('assignMachineModal');
+    if (!modal) return;
+
+    document.getElementById('assignTransactionId').value = transactionId || '';
+    document.getElementById('assignMaterialId').value = materialId || '';
+    document.getElementById('assignMaterialName').textContent = `${materialName} (${materialId})`;
+
+    const curMeta = getMachineDef(currentMachineId);
+    const curMachineEl = document.getElementById('assignCurrentMachine');
+    if (curMachineEl) {
+        curMachineEl.textContent = curMeta ? curMeta.name : (currentMachineId ? `Mesin ${currentMachineId}` : 'Belum Ditugaskan (Antrian Stok)');
+    }
+
+    const targetSelect = document.getElementById('targetMachineSelect');
+    if (targetSelect) {
+        if (currentMachineId && ['A1', 'A2', 'A3', 'B1', 'B2'].includes(currentMachineId.toUpperCase())) {
+            targetSelect.value = currentMachineId.toUpperCase();
+        } else {
+            targetSelect.value = 'A1';
+        }
+    }
+
+    modal.style.display = 'flex';
+}
+
+function closeAssignMachineModal() {
+    const modal = document.getElementById('assignMachineModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+async function submitAssignMachine(e) {
+    if (e) e.preventDefault();
+
+    const transactionId = document.getElementById('assignTransactionId').value;
+    const materialId = document.getElementById('assignMaterialId').value;
+    const targetSelect = document.getElementById('targetMachineSelect');
+    const machineId = targetSelect ? targetSelect.value : '';
+
+    if (!transactionId || !machineId) {
+        showToast('Pilih mesin tujuan penugasan', 'warning');
+        return;
+    }
+
+    const submitBtn = document.getElementById('assignSubmitBtn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Menyimpan...';
+    }
+
+    try {
+        const response = await fetch('/api/machine-output/assign-machine', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                materialId,
-                transactionId: transactionId ? parseInt(transactionId, 10) : undefined,
-                meterType,
-                usedQuantity: usedQty,
-                sourcePc
+                transactionId: parseInt(transactionId, 10),
+                machineId
             })
         });
 
         const data = await response.json();
 
         if (response.ok && data.success) {
-            showToast(data.message || 'Deteksi pemakaian berhasil dicatat!', 'success');
-            closeSimulateModal();
+            showToast(data.message || `Komponen berhasil ditugaskan ke Mesin ${machineId}!`, 'success');
+            closeAssignMachineModal();
             await loadMachineFeed();
-            await loadDetectionHistory();
         } else {
-            showToast(data.error || 'Gagal mencatat pemakaian', 'error');
+            showToast(data.error || 'Gagal menugaskan mesin', 'error');
         }
     } catch (error) {
-        console.error('Simulate detection error:', error);
+        console.error('Assign machine error:', error);
         showToast('Terjadi kesalahan koneksi', 'error');
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.textContent = '🚀 Kirim Sinyal Deteksi';
+            submitBtn.textContent = 'Simpan Penugasan Mesin';
         }
     }
 }
@@ -943,4 +1603,13 @@ function escapeHtml(str) {
 
 function escapeSingleQuote(str) {
     return String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+// ========== INITIALIZATION ==========
+document.addEventListener('DOMContentLoaded', () => {
+    initMachinePage();
+});
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    initMachinePage();
 }

@@ -1,4 +1,4 @@
-// Master Materials Management Logic (Superadmin Only)
+// Master Materials Management Logic (Superadmin & Admin)
 
 let currentMasterPage = 1;
 const MASTER_LIMIT = 20;
@@ -11,10 +11,12 @@ async function initMasterMaterialsPage() {
     if (!user) return;
 
     const role = String(user.role || '').trim().toLowerCase();
-    if (role !== 'superadmin') {
-        showToast('Akses ditolak. Halaman ini khusus Superadmin.', 'error');
+    const username = String(user.username || '').trim().toLowerCase();
+    const canAccess = role === 'superadmin' || role === 'admin' || role === 'user' || username === 'admin';
+    if (!canAccess) {
+        showToast('Akses ditolak. Silakan login terlebih dahulu.', 'error');
         setTimeout(() => {
-            window.location.href = '/dashboard.html';
+            window.location.href = '/login.html';
         }, 1200);
         return;
     }
@@ -29,7 +31,99 @@ async function initMasterMaterialsPage() {
         });
     }
 
+    setupMaterialIdScanInput(
+        document.getElementById('addMaterialId'),
+        'addSpecification',
+        'addMaterialIdFeedback',
+        'saveAddBtn'
+    );
+    setupMaterialIdScanInput(
+        document.getElementById('editMaterialId'),
+        'editSpecification',
+        'editMaterialIdFeedback',
+        'saveEditBtn',
+        () => {
+            const el = document.getElementById('editOriginalId');
+            return el ? el.value : null;
+        }
+    );
+
+    // Category Dropdown initialization (Master vs Meter Komponen Quantity)
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialCategory = urlParams.get('category') || 'master';
+    switchMasterCategory(initialCategory);
+
     await loadMasterData(1);
+}
+
+// ========== CATEGORY DROPDOWN SWITCHER (MASTER vs METER KOMPONEN QUANTITY) ==========
+
+function switchMasterCategory(category) {
+    const masterContainer = document.getElementById('viewMasterContainer');
+    const meterQtyContainer = document.getElementById('viewMeterQuantityContainer');
+    const pageTitle = document.getElementById('pageTitleText');
+    const pageSubtitle = document.getElementById('pageSubtitleText');
+    const categorySubtitle = document.getElementById('currentCategorySubtitle');
+    const masterBadge = document.getElementById('totalMasterBadge');
+    const dropdown = document.getElementById('masterCategoryDropdown');
+
+    const effectiveCategory = category === 'meter_quantity' ? 'meter_quantity' : 'master';
+
+    if (dropdown && dropdown.value !== effectiveCategory) {
+        dropdown.value = effectiveCategory;
+    }
+
+    if (effectiveCategory === 'meter_quantity') {
+        if (masterContainer) masterContainer.style.display = 'none';
+        if (meterQtyContainer) meterQtyContainer.style.display = 'block';
+        if (pageTitle) pageTitle.textContent = 'Meter Komponen Quantity';
+        if (pageSubtitle) pageSubtitle.textContent = 'Katalog standar quantity komponen per type meter.';
+        if (categorySubtitle) categorySubtitle.textContent = 'Menampilkan data meter komponen quantity';
+        if (masterBadge) masterBadge.style.display = 'none';
+    } else {
+        if (masterContainer) masterContainer.style.display = 'block';
+        if (meterQtyContainer) meterQtyContainer.style.display = 'none';
+        if (pageTitle) pageTitle.textContent = 'Master Data Material SMT';
+        if (pageSubtitle) pageSubtitle.textContent = 'Kelola daftar katalog Material ID dan Spesifikasi untuk auto-complete saat scan input dan output mesin.';
+        if (categorySubtitle) categorySubtitle.textContent = 'Menampilkan data master material SMT';
+        if (masterBadge) masterBadge.style.display = 'inline-flex';
+    }
+
+    // Update sidebar active sub-item styling
+    const navSubMaster = document.getElementById('navSubMaster');
+    const navSubMeterQuantity = document.getElementById('navSubMeterQuantity');
+    if (effectiveCategory === 'meter_quantity') {
+        if (navSubMeterQuantity) {
+            navSubMeterQuantity.className = 'flex items-center gap-2.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#1e3a8a] text-white shadow-xs transition';
+        }
+        if (navSubMaster) {
+            navSubMaster.className = 'flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition';
+        }
+    } else {
+        if (navSubMaster) {
+            navSubMaster.className = 'flex items-center gap-2.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#1e3a8a] text-white shadow-xs transition';
+        }
+        if (navSubMeterQuantity) {
+            navSubMeterQuantity.className = 'flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition';
+        }
+    }
+
+    // Persist in URL query param
+    try {
+        const url = new URL(window.location);
+        if (effectiveCategory === 'meter_quantity') {
+            url.searchParams.set('category', 'meter_quantity');
+        } else {
+            url.searchParams.delete('category');
+        }
+        window.history.replaceState({}, '', url);
+    } catch (e) {
+        // Silently ignore URL state errors
+    }
+
+    if (window.lucide) {
+        lucide.createIcons();
+    }
 }
 
 // ========== LOAD MASTER DATA ==========
@@ -63,7 +157,7 @@ async function loadMasterData(page = 1) {
         } else {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" style="text-align: center; padding: 24px; color: var(--danger-color);">
+                    <td colspan="7" style="text-align: center; padding: 24px; color: var(--danger-color);">
                         ${escapeHtml(result.error || 'Gagal memuat master data material')}
                     </td>
                 </tr>
@@ -73,7 +167,7 @@ async function loadMasterData(page = 1) {
         console.error('Load master data error:', error);
         tbody.innerHTML = `
             <tr>
-                <td colspan="5" style="text-align: center; padding: 24px; color: var(--danger-color);">
+                <td colspan="7" style="text-align: center; padding: 24px; color: var(--danger-color);">
                     Terjadi kesalahan koneksi saat memuat data master
                 </td>
             </tr>
@@ -88,7 +182,7 @@ function renderMasterTable(items, pagination) {
     if (!items || items.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="5" style="text-align: center; padding: 36px; color: var(--light-text);">
+                <td colspan="7" style="text-align: center; padding: 36px; color: var(--light-text);">
                     <div style="font-size: 32px; margin-bottom: 8px;">📄</div>
                     <strong>Belum ada data master material${currentMasterSearch ? ' yang cocok dengan pencarian' : ''}</strong>
                     <p style="font-size: 13px; margin: 6px 0 0 0; opacity: 0.85;">
@@ -104,9 +198,14 @@ function renderMasterTable(items, pagination) {
 
     tbody.innerHTML = items.map((item, index) => {
         const escapedId = escapeHtml(item.material_id);
-        const escapedName = escapeHtml(item.material_name);
+        const specVal = item.specification || item.material_name || '';
+        const escapedSpec = escapeHtml(specVal);
+        const qtyVal = item.qty !== undefined && item.qty !== null ? item.qty : 1;
+        const unitVal = item.unit || 'PCS';
+        const escapedUnit = escapeHtml(unitVal);
         const singleQuoteId = escapeSingleQuote(item.material_id);
-        const singleQuoteName = escapeSingleQuote(item.material_name);
+        const singleQuoteSpec = escapeSingleQuote(specVal);
+        const singleQuoteUnit = escapeSingleQuote(unitVal);
 
         return `
             <tr>
@@ -115,7 +214,15 @@ function renderMasterTable(items, pagination) {
                     <span class="material-id-cell">${escapedId}</span>
                 </td>
                 <td style="font-weight: 500; color: var(--dark-text);">
-                    ${escapedName}
+                    ${escapedSpec}
+                </td>
+                <td style="text-align: center; font-weight: 600; color: var(--dark-text);">
+                    ${formatNumber(qtyVal)}
+                </td>
+                <td style="text-align: center;">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700">
+                        ${escapedUnit}
+                    </span>
                 </td>
                 <td style="font-size: 13px; color: var(--light-text); white-space: nowrap;">
                     ⏱️ ${formatDateTime(item.updated_at || item.created_at)}
@@ -125,7 +232,7 @@ function renderMasterTable(items, pagination) {
                         type="button" 
                         class="btn btn-secondary btn-sm" 
                         style="padding: 4px 10px; font-size: 12px; margin-right: 4px;"
-                        onclick="openEditModal('${singleQuoteId}', '${singleQuoteName}')"
+                        onclick="openEditModal('${singleQuoteId}', '${singleQuoteSpec}', ${qtyVal}, '${singleQuoteUnit}')"
                         title="Edit material ini"
                     >
                         ✏️ Edit
@@ -134,7 +241,7 @@ function renderMasterTable(items, pagination) {
                         type="button" 
                         class="btn btn-danger btn-sm" 
                         style="padding: 4px 10px; font-size: 12px;"
-                        onclick="deleteMasterItem('${singleQuoteId}', '${singleQuoteName}')"
+                        onclick="deleteMasterItem('${singleQuoteId}', '${singleQuoteSpec}')"
                         title="Hapus material ini"
                     >
                         🗑️ Hapus
@@ -307,14 +414,188 @@ async function exportMasterExcel() {
 
 // ========== TAMBAH MATERIAL MANUAL ==========
 
+// --- QR / Barcode Parsing (Ambil ID Material Saja) ---
+function _extractMaterialIDFromScan(text) {
+    if (!text || typeof text !== 'string') return '';
+    const trimmed = text.trim();
+    if (!trimmed) return '';
+
+    const upper = trimmed.toUpperCase();
+    if (upper.startsWith('Z01') || upper.startsWith('Z0')) {
+        const tokens = trimmed.split(/\s+/);
+        if (tokens.length > 5 && tokens[5] !== 'null') {
+            return tokens[5].trim();
+        }
+    }
+
+    const ampIdx = trimmed.indexOf('&');
+    if (ampIdx > 0) {
+        return trimmed.substring(0, ampIdx).trim();
+    }
+
+    return trimmed;
+}
+
+/**
+ * Setup scanner listener and duplicate check directly on Material ID input fields
+ */
+function setupMaterialIdScanInput(inputEl, targetNameInputId, feedbackElId, saveBtnId, getOriginalIdFn) {
+    if (!inputEl) return;
+    let scanTimer = null;
+    let dupTimer = null;
+
+    const feedbackEl = feedbackElId ? document.getElementById(feedbackElId) : null;
+    const saveBtn = saveBtnId ? document.getElementById(saveBtnId) : null;
+
+    const clearFeedback = () => {
+        if (feedbackEl) {
+            feedbackEl.style.display = 'none';
+            feedbackEl.innerHTML = '';
+        }
+        inputEl.style.borderColor = '';
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.removeAttribute('title');
+        }
+    };
+
+    const checkDuplicate = async (rawInput) => {
+        const id = _extractMaterialIDFromScan(rawInput || inputEl.value || '');
+        if (!id) {
+            clearFeedback();
+            return false;
+        }
+
+        const origId = getOriginalIdFn ? getOriginalIdFn() : null;
+        if (origId && origId.trim().toLowerCase() === id.trim().toLowerCase()) {
+            clearFeedback();
+            return false;
+        }
+
+        try {
+            const res = await fetch(`/api/material-catalog/${encodeURIComponent(id)}`);
+            const json = await res.json();
+
+            if (res.ok && json.success && json.data) {
+                // ID sudah terdaftar!
+                const existingSpec = json.data.specification || json.data.material_name;
+                inputEl.style.borderColor = '#dc2626';
+                if (feedbackEl) {
+                    feedbackEl.style.display = 'block';
+                    feedbackEl.style.background = '#fef2f2';
+                    feedbackEl.style.color = '#dc2626';
+                    feedbackEl.style.border = '1px solid #fecaca';
+                    feedbackEl.innerHTML = `⚠️ <strong>ID Sudah Terdaftar!</strong> Material ID <code>${escapeHtml(id)}</code> sudah ada di master data dengan spesifikasi <strong>"${escapeHtml(existingSpec)}"</strong>. Tidak dapat menambahkan ID yang sama!`;
+                }
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.title = 'Material ID sudah ada di master data!';
+                }
+                showToast(`Material ID "${id}" sudah ada di data master!`, 'warning');
+                return true;
+            } else {
+                clearFeedback();
+                return false;
+            }
+        } catch (err) {
+            clearFeedback();
+            return false;
+        }
+    };
+
+    const scheduleDupCheck = () => {
+        clearTimeout(dupTimer);
+        dupTimer = setTimeout(() => {
+            checkDuplicate(inputEl.value);
+        }, 250);
+    };
+
+    const processScan = () => {
+        const raw = inputEl.value;
+        if (!raw) {
+            clearFeedback();
+            return;
+        }
+
+        const parsed = _extractMaterialIDFromScan(raw);
+        if (parsed) {
+            inputEl.value = parsed;
+            if (parsed !== raw) {
+                showToast(`Material ID terdeteksi: ${parsed}`, 'success');
+            }
+        }
+
+        // Pastikan spesifikasi tetap kosong saat scan, tidak terisi potongan barcode
+        const specEl = document.getElementById(targetNameInputId);
+        if (specEl && parsed && parsed !== raw) {
+            specEl.value = '';
+        }
+
+        scheduleDupCheck();
+    };
+
+    inputEl.addEventListener('input', (e) => {
+        const val = e.target.value;
+        if (!val) {
+            clearFeedback();
+            return;
+        }
+
+        // Debounce 150ms agar menunggu barcode scanner selesai mengirim seluruh karakter
+        clearTimeout(scanTimer);
+        scanTimer = setTimeout(processScan, 150);
+    });
+
+    inputEl.addEventListener('paste', () => {
+        clearTimeout(scanTimer);
+        scanTimer = setTimeout(processScan, 50);
+    });
+
+    inputEl.addEventListener('blur', () => {
+        processScan();
+    });
+
+    // Mencegah barcode scanner menekan Tab atau Enter yang menyebabkan kursor loncat ke field nama sebelum scan selesai
+    inputEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === 'Tab') {
+            e.preventDefault();
+            clearTimeout(scanTimer);
+            processScan();
+        }
+    });
+}
+
 function openAddModal() {
     const modal = document.getElementById('addMaterialModal');
     const form = document.getElementById('addMaterialForm');
     if (form) form.reset();
+
+    const idInput = document.getElementById('addMaterialId');
+    if (idInput) idInput.style.borderColor = '';
+
+    const qtyInput = document.getElementById('addQty');
+    if (qtyInput) qtyInput.value = '1';
+
+    const unitInput = document.getElementById('addUnit');
+    if (unitInput) unitInput.value = 'PCS';
+
+    const feedback = document.getElementById('addMaterialIdFeedback');
+    if (feedback) {
+        feedback.style.display = 'none';
+        feedback.innerHTML = '';
+    }
+
+    const saveBtn = document.getElementById('saveAddBtn');
+    if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.removeAttribute('title');
+    }
+
     if (modal) {
         modal.style.display = 'flex';
-        const idInput = document.getElementById('addMaterialId');
-        if (idInput) setTimeout(() => idInput.focus(), 100);
+        if (idInput) {
+            setTimeout(() => idInput.focus(), 150);
+        }
     }
 }
 
@@ -327,15 +608,53 @@ async function submitAddMaterial(e) {
     e.preventDefault();
 
     const idInput = document.getElementById('addMaterialId');
-    const nameInput = document.getElementById('addMaterialName');
+    const specInput = document.getElementById('addSpecification');
+    const qtyInput = document.getElementById('addQty');
+    const unitInput = document.getElementById('addUnit');
     const saveBtn = document.getElementById('saveAddBtn');
 
-    const materialId = idInput ? idInput.value.trim() : '';
-    const materialName = nameInput ? nameInput.value.trim() : '';
+    const rawId = idInput ? idInput.value.trim() : '';
+    const materialId = _extractMaterialIDFromScan(rawId);
+    if (idInput && materialId) idInput.value = materialId;
 
-    if (!materialId || !materialName) {
-        showToast('Material ID dan Nama Material wajib diisi', 'warning');
+    const specification = specInput ? specInput.value.trim() : '';
+    const parsedQty = qtyInput ? parseInt(qtyInput.value, 10) : 1;
+    const qty = (!isNaN(parsedQty) && parsedQty > 0) ? parsedQty : 1;
+    const unit = (unitInput ? unitInput.value.trim().toUpperCase() : '') || 'PCS';
+
+    if (!materialId) {
+        showToast('Material ID wajib diisi', 'warning');
+        if (idInput) idInput.focus();
         return;
+    }
+
+    if (!specification) {
+        showToast('Spesifikasi wajib diisi sebelum menyimpan!', 'warning');
+        if (specInput) specInput.focus();
+        return;
+    }
+
+    // Validasi duplikasi sebelum submit
+    try {
+        const checkRes = await fetch(`/api/material-catalog/${encodeURIComponent(materialId)}`);
+        const checkJson = await checkRes.json();
+        if (checkRes.ok && checkJson.success && checkJson.data) {
+            const existingSpec = checkJson.data.specification || checkJson.data.material_name;
+            showToast(`Material ID "${materialId}" sudah terdaftar (${existingSpec}). Tidak boleh duplikasi!`, 'error');
+            if (idInput) idInput.style.borderColor = '#dc2626';
+            const feedback = document.getElementById('addMaterialIdFeedback');
+            if (feedback) {
+                feedback.style.display = 'block';
+                feedback.style.background = '#fef2f2';
+                feedback.style.color = '#dc2626';
+                feedback.style.border = '1px solid #fecaca';
+                feedback.innerHTML = `⚠️ <strong>ID Sudah Terdaftar!</strong> Material ID <code>${escapeHtml(materialId)}</code> sudah ada di master data dengan spesifikasi <strong>"${escapeHtml(existingSpec)}"</strong>. Tidak dapat menambahkan ID yang sama!`;
+            }
+            if (saveBtn) saveBtn.disabled = true;
+            return;
+        }
+    } catch (err) {
+        // Jika cek gagal koneksi, biarkan backend memvalidasi
     }
 
     if (saveBtn) {
@@ -347,7 +666,13 @@ async function submitAddMaterial(e) {
         const response = await fetch('/api/material-catalog', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ materialId, materialName })
+            body: JSON.stringify({
+                materialId,
+                specification,
+                materialName: specification,
+                qty,
+                unit
+            })
         });
 
         const result = await response.json();
@@ -358,6 +683,7 @@ async function submitAddMaterial(e) {
             await loadMasterData(currentMasterPage);
         } else {
             showToast(result.error || 'Gagal menambahkan material', 'error');
+            if (idInput) idInput.style.borderColor = '#dc2626';
         }
     } catch (error) {
         console.error('Add material error:', error);
@@ -372,19 +698,38 @@ async function submitAddMaterial(e) {
 
 // ========== EDIT MATERIAL MANUAL ==========
 
-function openEditModal(materialId, materialName) {
+function openEditModal(materialId, specification, qty = 1, unit = 'PCS') {
     const modal = document.getElementById('editMaterialModal');
     const origInput = document.getElementById('editOriginalId');
     const idInput = document.getElementById('editMaterialId');
-    const nameInput = document.getElementById('editMaterialName');
+    const specInput = document.getElementById('editSpecification');
+    const qtyInput = document.getElementById('editQty');
+    const unitInput = document.getElementById('editUnit');
+    const feedback = document.getElementById('editMaterialIdFeedback');
+    const saveBtn = document.getElementById('saveEditBtn');
 
     if (origInput) origInput.value = materialId;
-    if (idInput) idInput.value = materialId;
-    if (nameInput) nameInput.value = materialName;
+    if (idInput) {
+        idInput.value = materialId;
+        idInput.style.borderColor = '';
+    }
+    if (specInput) specInput.value = specification;
+    if (qtyInput) qtyInput.value = (qty !== undefined && qty !== null) ? qty : 1;
+    if (unitInput) unitInput.value = unit || 'PCS';
+
+    if (feedback) {
+        feedback.style.display = 'none';
+        feedback.innerHTML = '';
+    }
+
+    if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.removeAttribute('title');
+    }
 
     if (modal) {
         modal.style.display = 'flex';
-        if (nameInput) setTimeout(() => nameInput.focus(), 100);
+        if (specInput) setTimeout(() => specInput.focus(), 100);
     }
 }
 
@@ -398,16 +743,56 @@ async function submitEditMaterial(e) {
 
     const origInput = document.getElementById('editOriginalId');
     const idInput = document.getElementById('editMaterialId');
-    const nameInput = document.getElementById('editMaterialName');
+    const specInput = document.getElementById('editSpecification');
+    const qtyInput = document.getElementById('editQty');
+    const unitInput = document.getElementById('editUnit');
     const saveBtn = document.getElementById('saveEditBtn');
 
     const originalId = origInput ? origInput.value.trim() : '';
-    const newMaterialId = idInput ? idInput.value.trim() : '';
-    const materialName = nameInput ? nameInput.value.trim() : '';
+    const rawNewId = idInput ? idInput.value.trim() : '';
+    const newMaterialId = _extractMaterialIDFromScan(rawNewId);
+    if (idInput && newMaterialId) idInput.value = newMaterialId;
 
-    if (!newMaterialId || !materialName) {
-        showToast('Material ID dan Nama Material tidak boleh kosong', 'warning');
+    const specification = specInput ? specInput.value.trim() : '';
+    const parsedQty = qtyInput ? parseInt(qtyInput.value, 10) : 1;
+    const qty = (!isNaN(parsedQty) && parsedQty > 0) ? parsedQty : 1;
+    const unit = (unitInput ? unitInput.value.trim().toUpperCase() : '') || 'PCS';
+
+    if (!newMaterialId) {
+        showToast('Material ID wajib diisi', 'warning');
+        if (idInput) idInput.focus();
         return;
+    }
+
+    if (!specification) {
+        showToast('Spesifikasi wajib diisi sebelum menyimpan!', 'warning');
+        if (specInput) specInput.focus();
+        return;
+    }
+
+    // Cek duplikasi jika ID diubah ke ID lain
+    if (newMaterialId.toLowerCase() !== originalId.toLowerCase()) {
+        try {
+            const checkRes = await fetch(`/api/material-catalog/${encodeURIComponent(newMaterialId)}`);
+            const checkJson = await checkRes.json();
+            if (checkRes.ok && checkJson.success && checkJson.data) {
+                const existingSpec = checkJson.data.specification || checkJson.data.material_name;
+                showToast(`Material ID "${newMaterialId}" sudah digunakan (${existingSpec}). Tidak dapat menduplikasi!`, 'error');
+                if (idInput) idInput.style.borderColor = '#dc2626';
+                const feedback = document.getElementById('editMaterialIdFeedback');
+                if (feedback) {
+                    feedback.style.display = 'block';
+                    feedback.style.background = '#fef2f2';
+                    feedback.style.color = '#dc2626';
+                    feedback.style.border = '1px solid #fecaca';
+                    feedback.innerHTML = `⚠️ <strong>ID Sudah Digunakan!</strong> Material ID <code>${escapeHtml(newMaterialId)}</code> sudah terdaftar dengan spesifikasi <strong>"${escapeHtml(existingSpec)}"</strong>.`;
+                }
+                if (saveBtn) saveBtn.disabled = true;
+                return;
+            }
+        } catch (err) {
+            // Biarkan backend memvalidasi
+        }
     }
 
     if (saveBtn) {
@@ -421,7 +806,10 @@ async function submitEditMaterial(e) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 materialId: newMaterialId,
-                materialName
+                specification,
+                materialName: specification,
+                qty,
+                unit
             })
         });
 
@@ -433,6 +821,7 @@ async function submitEditMaterial(e) {
             await loadMasterData(currentMasterPage);
         } else {
             showToast(result.error || 'Gagal memperbarui master material', 'error');
+            if (idInput) idInput.style.borderColor = '#dc2626';
         }
     } catch (error) {
         console.error('Edit material error:', error);
@@ -447,8 +836,8 @@ async function submitEditMaterial(e) {
 
 // ========== HAPUS MATERIAL ==========
 
-async function deleteMasterItem(materialId, materialName) {
-    const confirmed = confirm(`Apakah Anda yakin ingin menghapus master material:\n\nID: ${materialId}\nNama: ${materialName}\n\nTindakan ini tidak dapat dibatalkan.`);
+async function deleteMasterItem(materialId, specification) {
+    const confirmed = confirm(`Apakah Anda yakin ingin menghapus master material:\n\nID: ${materialId}\nSpesifikasi: ${specification}\n\nTindakan ini tidak dapat dibatalkan.`);
     if (!confirmed) return;
 
     try {

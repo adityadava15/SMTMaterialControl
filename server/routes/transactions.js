@@ -57,8 +57,9 @@ router.post('/output', isAuthenticated, canAccessMaterials, async (req, res) => 
             return res.status(400).json({ error: 'Product type is required' });
         }
 
-        if (!PRODUCT_TYPES.includes(normalizedProductType)) {
-            return res.status(400).json({ error: 'Invalid product type' });
+        const [meterTypeRows] = await db.query('SELECT id FROM meter_types WHERE name = ?', [normalizedProductType]);
+        if (meterTypeRows.length === 0 && !PRODUCT_TYPES.includes(normalizedProductType)) {
+            return res.status(400).json({ error: 'Type meter tidak valid atau belum terdaftar' });
         }
 
         if (Number.isNaN(parsedOperatorId) || parsedOperatorId <= 0) {
@@ -83,7 +84,8 @@ router.post('/output', isAuthenticated, canAccessMaterials, async (req, res) => 
             const results = [];
 
             for (const item of items) {
-                const { materialId, quantity } = item;
+                const { materialId, quantity, rid } = item;
+                const normalizedItemRid = typeof rid === 'string' && rid.trim() ? rid.trim() : null;
 
                 if (!materialId || !quantity) {
                     throw new Error('Material ID and quantity are required for each item');
@@ -101,6 +103,19 @@ router.post('/output', isAuthenticated, canAccessMaterials, async (req, res) => 
 
                 const material = materials[0];
 
+                // Check roll if RID is provided
+                let activeRoll = null;
+                if (normalizedItemRid) {
+                    const [rolls] = await connection.query(
+                        'SELECT id, quantity FROM material_rolls WHERE material_id = ? AND rid = ? AND status = "active" LIMIT 1',
+                        [materialId, normalizedItemRid]
+                    );
+                    if (rolls.length === 0) {
+                        throw new Error(`Roll dengan RID "${normalizedItemRid}" tidak ditemukan dalam stok aktif material ${material.name || materialId}`);
+                    }
+                    activeRoll = rolls[0];
+                }
+
                 // Check if enough quantity
                 if (material.quantity < quantity) {
                     throw new Error(`Insufficient quantity for material ${material.name}. Available: ${material.quantity}, Requested: ${quantity}`);
@@ -113,11 +128,26 @@ router.post('/output', isAuthenticated, canAccessMaterials, async (req, res) => 
                     [newQuantity, materialId]
                 );
 
+                const rawMach = (item && item.machineId) || req.body.machineId || null;
+                const cleanMach = ['A1', 'A2', 'A3', 'B1', 'B2'].includes(String(rawMach || '').toUpperCase().trim())
+                    ? String(rawMach).toUpperCase().trim()
+                    : null;
+
                 // Log transaction
-                await connection.query(
-                    'INSERT INTO transactions (material_id, material_name, transaction_type, product_type, operator_name, quantity, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                    [materialId, material.name, 'OUTPUT', normalizedProductType, selectedOperator.name, quantity, req.session.userId]
+                const [txResult] = await connection.query(
+                    'INSERT INTO transactions (material_id, material_name, transaction_type, product_type, machine_id, operator_name, quantity, rid, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    [materialId, material.name, 'OUTPUT', normalizedProductType, cleanMach, selectedOperator.name, quantity, normalizedItemRid, req.session.userId]
                 );
+
+                const outputTxId = txResult.insertId;
+
+                // Update roll status to consumed so it disappears from dashboard active detail
+                if (activeRoll) {
+                    await connection.query(
+                        'UPDATE material_rolls SET status = "consumed", output_transaction_id = ? WHERE id = ?',
+                        [outputTxId, activeRoll.id]
+                    );
+                }
 
                 results.push({
                     materialId,
@@ -125,7 +155,8 @@ router.post('/output', isAuthenticated, canAccessMaterials, async (req, res) => 
                     productType: normalizedProductType,
                     operatorName: selectedOperator.name,
                     usedQuantity: quantity,
-                    remainingQuantity: newQuantity
+                    remainingQuantity: newQuantity,
+                    rid: normalizedItemRid
                 });
             }
 
@@ -183,7 +214,7 @@ router.get('/history', isAuthenticated, canAccessMaterials, async (req, res) => 
             return res.status(400).json({ error: 'startDateTime cannot be greater than endDateTime' });
         }
 
-        let query = 'SELECT t.*, u.username, COALESCE(t.operator_name, u.username) AS display_user FROM transactions t LEFT JOIN users u ON t.user_id = u.id';
+        let query = 'SELECT t.*, t.material_name AS specification, u.username, COALESCE(t.operator_name, u.username) AS display_user FROM transactions t LEFT JOIN users u ON t.user_id = u.id';
         let countQuery = 'SELECT COUNT(*) as total FROM transactions t';
         const params = [];
         const conditions = [];
@@ -195,8 +226,8 @@ router.get('/history', isAuthenticated, canAccessMaterials, async (req, res) => 
         }
 
         if (search) {
-            conditions.push('(t.material_id LIKE ? OR t.material_name LIKE ? OR t.product_type LIKE ? OR t.operator_name LIKE ? OR EXISTS (SELECT 1 FROM machine_meter_usage mmu WHERE mmu.transaction_id = t.id AND mmu.meter_type LIKE ?))');
-            params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+            conditions.push('(t.material_id LIKE ? OR t.material_name LIKE ? OR t.product_type LIKE ? OR t.operator_name LIKE ? OR t.rid LIKE ? OR EXISTS (SELECT 1 FROM machine_meter_usage mmu WHERE mmu.transaction_id = t.id AND (mmu.meter_type LIKE ? OR mmu.rid LIKE ?)))');
+            params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
         }
 
         if (startDate) {
@@ -229,6 +260,7 @@ router.get('/history', isAuthenticated, canAccessMaterials, async (req, res) => 
                     id,
                     transaction_id,
                     material_id,
+                    rid,
                     material_name,
                     meter_type,
                     used_quantity,

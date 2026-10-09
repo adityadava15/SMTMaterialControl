@@ -7,6 +7,7 @@ checkAuth();
 const form = document.getElementById('materialInputForm');
 const materialIdInput = document.getElementById('materialId');
 const materialNameInput = document.getElementById('materialName');
+const materialRidInput = document.getElementById('materialRid');
 const quantityPreset = document.getElementById('quantityPreset');
 const materialQuantity = document.getElementById('materialQuantity');
 
@@ -26,8 +27,96 @@ quantityPreset.addEventListener('change', (e) => {
     }
 });
 
+// ========== QR CODE PARSING HELPERS ==========
+function extractMaterialID(text) {
+    if (!text || typeof text !== 'string') return '';
+    const trimmed = text.trim();
+    if (!trimmed) return '';
+    const upper = trimmed.toUpperCase();
+    if (upper.startsWith('Z01') || upper.startsWith('Z0')) {
+        const tokens = trimmed.split(/\s+/);
+        if (tokens.length > 5 && tokens[5] !== 'null') {
+            return tokens[5].trim();
+        }
+    }
+    const ampIndex = trimmed.indexOf('&');
+    if (ampIndex > 0) {
+        return trimmed.substring(0, ampIndex).trim();
+    }
+    return trimmed;
+}
+
+function extractQuantity(text) {
+    if (!text || typeof text !== 'string') return null;
+    const trimmed = text.trim();
+    if (/^Z0/i.test(trimmed)) {
+        const tokens = trimmed.split(/\s+/);
+        if (tokens.length > 13 && tokens[13] !== 'null') {
+            const val = parseFloat(tokens[13].trim());
+            return isNaN(val) ? null : Math.round(val);
+        }
+    } else {
+        const parts = trimmed.split('&');
+        if (parts.length >= 2) {
+            const val = parseInt(parts[1].trim(), 10);
+            return isNaN(val) ? null : val;
+        }
+    }
+    return null;
+}
+
+function extractRID(text) {
+    if (!text || typeof text !== 'string') return null;
+    const trimmed = text.trim();
+    if (trimmed.includes('&')) {
+        const parts = trimmed.split('&');
+        if (parts.length >= 3 && parts[2].trim()) {
+            const p3 = parts[2].trim();
+            const matchP3 = p3.match(/(\d{5})$/);
+            return matchP3 ? matchP3[1] : (p3.length >= 5 ? p3.slice(-5) : p3);
+        }
+    }
+    const tokens = trimmed.split(/\s+/);
+    const lastToken = tokens[tokens.length - 1];
+    const match = lastToken.match(/(\d{5})$/);
+    if (match) return match[1];
+    const digitMatch = lastToken.match(/\d+/g);
+    if (digitMatch && digitMatch.length > 0) {
+        const lastGroup = digitMatch[digitMatch.length - 1];
+        if (lastGroup.length >= 5) return lastGroup.slice(-5);
+    }
+    return null;
+}
+
+function handlePotentialQRScan() {
+    const raw = materialIdInput.value;
+    if (!raw) return;
+
+    if (/^Z0/i.test(raw.trim()) || raw.includes('&') || /[\r\n]/.test(raw)) {
+        const parsedId = extractMaterialID(raw);
+        const parsedQty = extractQuantity(raw);
+        const parsedRid = extractRID(raw);
+
+        if (parsedId) {
+            materialIdInput.value = parsedId;
+            if (parsedQty && (!materialQuantity.value || materialQuantity.readOnly)) {
+                materialQuantity.value = parsedQty;
+            }
+            if (parsedRid && materialRidInput) {
+                materialRidInput.value = parsedRid;
+            }
+            showToast(`Material ID: ${parsedId}${parsedQty ? ` | Qty: ${parsedQty}` : ''}`, 'info');
+            loadMaterialNameFromMaster(parsedId);
+            return true;
+        }
+    }
+    return false;
+}
+
 materialIdInput.addEventListener('input', () => {
-    const materialId = materialIdInput.value.trim();
+    if (handlePotentialQRScan()) return;
+
+    const materialId = extractMaterialID(materialIdInput.value);
     materialNameInput.value = '';
 
     if (lookupTimer) clearTimeout(lookupTimer);
@@ -39,9 +128,14 @@ materialIdInput.addEventListener('input', () => {
     }, 250);
 });
 
+materialIdInput.addEventListener('paste', () => {
+    setTimeout(handlePotentialQRScan, 20);
+});
+
 materialIdInput.addEventListener('blur', () => {
-    const materialId = materialIdInput.value.trim();
+    const materialId = extractMaterialID(materialIdInput.value);
     if (materialId) {
+        materialIdInput.value = materialId;
         loadMaterialNameFromMaster(materialId);
     }
 });
@@ -55,7 +149,7 @@ async function loadMaterialNameFromMaster(materialId) {
         const data = await response.json();
 
         if (response.ok && data.success) {
-            materialNameInput.value = data.data.material_name || '';
+            materialNameInput.value = data.data.specification || data.data.material_name || '';
             return;
         }
 
@@ -69,7 +163,8 @@ async function loadMaterialNameFromMaster(materialId) {
 async function handleMaterialInput(e) {
     e.preventDefault();
 
-    const materialId = materialIdInput.value.trim();
+    const materialId = extractMaterialID(materialIdInput.value.trim());
+    if (materialId) materialIdInput.value = materialId;
     const quantity = parseInt(materialQuantity.value, 10);
     const materialName = materialNameInput.value.trim();
 
@@ -97,6 +192,8 @@ async function handleMaterialInput(e) {
     submitBtn.textContent = '\u23F3 Memproses...';
 
     try {
+        const rid = materialRidInput && materialRidInput.value ? materialRidInput.value.trim() : null;
+
         const response = await fetch('/api/materials', {
             method: 'POST',
             headers: {
@@ -104,7 +201,8 @@ async function handleMaterialInput(e) {
             },
             body: JSON.stringify({
                 id: materialId,
-                quantity: quantity
+                quantity: quantity,
+                rid: rid
             })
         });
 
@@ -118,7 +216,9 @@ async function handleMaterialInput(e) {
                 resetForm();
             }, 1000);
         } else {
-            showError(data.error || 'Gagal menambahkan material');
+            const errorMsg = data.error || 'Gagal menambahkan material';
+            showError(errorMsg);
+            showToast(errorMsg, 'error');
         }
     } catch (error) {
         console.error('Error adding material:', error);

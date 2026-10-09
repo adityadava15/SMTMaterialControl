@@ -15,6 +15,12 @@ const addOperatorForm = document.getElementById('addOperatorForm');
 const addOperatorBtn = document.getElementById('addOperatorBtn');
 const newOperatorNameInput = document.getElementById('newOperatorName');
 
+const meterTypeManagementCard = document.getElementById('meterTypeManagementCard');
+const addMeterTypeForm = document.getElementById('addMeterTypeForm');
+const newMeterTypeNameInput = document.getElementById('newMeterTypeName');
+const addMeterTypeBtn = document.getElementById('addMeterTypeBtn');
+const meterTypeListBody = document.getElementById('meterTypeListBody');
+
 const catalogUploadForm = document.getElementById('catalogUploadForm');
 const catalogFileInput = document.getElementById('catalogFileInput');
 const uploadCatalogBtn = document.getElementById('uploadCatalogBtn');
@@ -40,6 +46,14 @@ async function loadProfile() {
             // Update Header
             document.getElementById('headerUsername').textContent = user.username;
             document.getElementById('headerRole').textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+
+            // Show Master Type Meter if Superadmin or Admin
+            if (user.role === 'superadmin' || user.role === 'admin') {
+                if (meterTypeManagementCard) {
+                    meterTypeManagementCard.style.display = 'block';
+                }
+                loadMeterTypes();
+            }
 
             // Show User Management if Superadmin
             if (user.role === 'superadmin') {
@@ -447,6 +461,131 @@ async function deleteOperator(id, operatorName) {
         console.error('Delete operator error:', error);
         showToast('Terjadi kesalahan koneksi', 'error');
     }
+}
+
+async function loadMeterTypes() {
+    if (!meterTypeListBody) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/meter-types');
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            renderMeterTypes(data.data);
+        } else {
+            meterTypeListBody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-red-500">Gagal memuat daftar type meter</td></tr>';
+        }
+    } catch (error) {
+        console.error('Load meter types error:', error);
+        meterTypeListBody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-red-500">Terjadi kesalahan koneksi</td></tr>';
+    }
+}
+
+function renderMeterTypes(types) {
+    if (!meterTypeListBody) {
+        return;
+    }
+
+    if (!types || types.length === 0) {
+        meterTypeListBody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-slate-400">Belum ada type meter. Tambahkan melalui form di atas.</td></tr>';
+        return;
+    }
+
+    meterTypeListBody.innerHTML = types.map((item, index) => `
+        <tr class="hover:bg-slate-50/50 transition">
+            <td class="py-2.5 px-4 text-slate-500 font-medium">${index + 1}</td>
+            <td class="py-2.5 px-4 font-semibold text-slate-800">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                    ${escapeHtml(item.name)}
+                </span>
+            </td>
+            <td class="py-2.5 px-4 text-slate-600">${escapeHtml(item.created_by_name || '-')}</td>
+            <td class="py-2.5 px-4 text-slate-400 text-[11px]">${typeof formatDateTime === 'function' ? formatDateTime(item.created_at) : new Date(item.created_at).toLocaleString('id-ID')}</td>
+            <td class="py-2.5 px-4 text-right">
+                <button type="button" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded bg-red-50 hover:bg-red-100 text-red-600 font-medium transition cursor-pointer" onclick="deleteMeterType(${item.id}, '${escapeSingleQuote(item.name)}')">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    <span>Hapus</span>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+
+    if (window.lucide) {
+        lucide.createIcons();
+    }
+}
+
+async function deleteMeterType(id, typeName) {
+    if (!confirm(`Apakah Anda yakin ingin menghapus type meter "${typeName}"?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/meter-types/${id}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            showToast(`Type meter ${typeName} berhasil dihapus`, 'success');
+            loadMeterTypes();
+        } else {
+            showToast(data.error || 'Gagal menghapus type meter', 'error');
+        }
+    } catch (error) {
+        console.error('Delete meter type error:', error);
+        showToast('Terjadi kesalahan koneksi', 'error');
+    }
+}
+window.deleteMeterType = deleteMeterType;
+
+if (addMeterTypeForm) {
+    addMeterTypeForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const typeName = (newMeterTypeNameInput.value || '').trim().toUpperCase();
+
+        if (!typeName) {
+            showToast('Nama type meter tidak boleh kosong', 'warning');
+            return;
+        }
+
+        if (addMeterTypeBtn) {
+            addMeterTypeBtn.disabled = true;
+            addMeterTypeBtn.innerHTML = '<span class="inline-block animate-spin mr-1">⌛</span> Menyimpan...';
+        }
+
+        try {
+            const response = await fetch('/api/meter-types', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name: typeName })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                showToast(`Type meter ${typeName} berhasil ditambahkan`, 'success');
+                newMeterTypeNameInput.value = '';
+                loadMeterTypes();
+            } else {
+                showToast(data.error || 'Gagal menambahkan type meter', 'error');
+            }
+        } catch (error) {
+            console.error('Add meter type error:', error);
+            showToast('Terjadi kesalahan koneksi', 'error');
+        } finally {
+            if (addMeterTypeBtn) {
+                addMeterTypeBtn.disabled = false;
+                addMeterTypeBtn.innerHTML = '<i data-lucide="plus" class="w-3.5 h-3.5"></i> <span>Tambah Type Meter</span>';
+                if (window.lucide) lucide.createIcons();
+            }
+        }
+    });
 }
 
 function escapeSingleQuote(value) {

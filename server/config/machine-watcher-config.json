@@ -20,7 +20,7 @@
       "brand": "Samsung",
       "ip": "192.168.1.102",
       "shareFolder": "Pd Info",
-      "path": "",
+      "path": "C:\\Users\\Rama-Notebook\\Documents\\Adid\\Pd Info\\a2",
       "enabled": true
     },
     {
@@ -29,7 +29,7 @@
       "brand": "Samsung",
       "ip": "192.168.1.103",
       "shareFolder": "Pd Info",
-      "path": "",
+      "path": "C:\\Users\\Rama-Notebook\\Documents\\Adid\\Pd Info\\a3",
       "enabled": true
     },
     {
@@ -47,7 +47,7 @@
       "brand": "Samsung",
       "ip": "192.168.1.105",
       "shareFolder": "Pd Info",
-      "path": "",
+      "path": "C:\\Users\\Rama-Notebook\\Documents\\Adid\\Pd Info\\b2",
       "enabled": true
     }
   ]

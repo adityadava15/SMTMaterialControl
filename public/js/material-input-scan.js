@@ -1,12 +1,10 @@
 // Material Input Scan Logic
 
-// Check authentication
-checkAuth();
-
-// Setup form and elements
+// Setup form and elements (deklarasi lebih awal agar tersedia saat checkAuth callback)
 const form = document.getElementById('materialInputForm');
 const qrScanInput = document.getElementById('qrScanInput');
 const materialIdInput = document.getElementById('materialId');
+const materialRidInput = document.getElementById('materialRid');
 const materialQuantityInput = document.getElementById('materialQuantity');
 const submitBtn = document.getElementById('submitBtn');
 const multiplierInput = document.getElementById('multiplierInput');
@@ -16,13 +14,44 @@ const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 // Session History Array
 let inputHistory = [];
 
+// Check authentication and apply role restrictions
+checkAuth().then(user => {
+    applyRoleRestrictions(user);
+});
+
+/**
+ * Restrict multiplierInput (Rolls) to superadmin only.
+ * Non-superadmin users: field dikunci ke nilai 1 dan tidak bisa diubah.
+ */
+/**
+ * Hide the Rolls box entirely for non-superadmin.
+ * Only superadmin can see and change the number of rolls.
+ */
+function applyRoleRestrictions(user) {
+    if (!user) return;
+
+    const normalizedRole = String(user.role || '').trim().toLowerCase();
+    const rollsGroup = document.getElementById('rollsGroup');
+    const rollsTips = document.getElementById('rollsTips');
+
+    if (normalizedRole !== 'superadmin') {
+        // Hide Rolls box — non-superadmin always uses 1 roll
+        if (rollsGroup) rollsGroup.style.display = 'none';
+        if (rollsTips) rollsTips.style.display = 'none';
+        multiplierInput.value = 1;
+    }
+}
+
+
+
 // ========== QR CODE PARSING FUNCTIONS ==========
 
 /**
- * Parse QR code and extract Material ID and Quantity
+ * Parse QR code and extract Material ID, Quantity, and RID (Roll ID)
  * Based on Excel formulas:
  * - ID: IF(LEFT(B56,3)="Z01", TRIM(MID(SUBSTITUTE(B56," ",REPT(" ",LEN(B56))), (5)*LEN(B56)+1, LEN(B56))), IFERROR(LEFT(B56,FIND("&",B56)-1), B56))
  * - QTY: IF(LEFT(B56,2)="Z0", TRIM(MID(SUBSTITUTE(B56," ",REPT(" ",LEN(B56))), (13)*LEN(B56)+1, LEN(B56))), TRIM(MID(SUBSTITUTE(B56,"&",REPT(" ",LEN(B56))), (1)*LEN(B56), LEN(B56))))
+ * - RID: RIGHT(TRIM(B56), 5) -> 5 digit paling belakang dari barcode roll unik
  */
 function parseQRCode(scannedText) {
     if (!scannedText || scannedText.trim() === '') {
@@ -32,6 +61,7 @@ function parseQRCode(scannedText) {
     const text = scannedText.trim();
     let materialId = null;
     let quantity = null;
+    let rid = null;
 
     try {
         // Extract Material ID
@@ -40,6 +70,9 @@ function parseQRCode(scannedText) {
         // Extract Quantity
         quantity = extractQuantity(text);
 
+        // Extract RID (Roll ID - 5 digit belakang)
+        rid = extractRID(text);
+
         // Validate results
         if (!materialId || materialId === '' || materialId === 'null') {
             return null;
@@ -47,7 +80,8 @@ function parseQRCode(scannedText) {
 
         return {
             id: materialId,
-            qty: quantity && quantity !== 'null' && quantity !== '' ? parseInt(quantity) : null
+            qty: quantity && quantity !== 'null' && quantity !== '' ? parseInt(quantity) : null,
+            rid: rid
         };
     } catch (error) {
         console.error('QR parsing error:', error);
@@ -93,6 +127,42 @@ function extractQuantity(text) {
     }
 }
 
+/**
+ * Extract 5-digit RID (Roll ID) from barcode
+ * e.g. S0086*********1051802606110002504 -> 02504
+ *      S0086*********102621260312000022 -> 00022
+ */
+function extractRID(text) {
+    if (!text || typeof text !== 'string') return null;
+    const trimmed = text.trim();
+    if (!trimmed) return null;
+
+    if (trimmed.includes('&')) {
+        const parts = trimmed.split('&');
+        if (parts.length >= 3 && parts[2].trim()) {
+            const p3 = parts[2].trim();
+            const matchP3 = p3.match(/(\d{5})$/);
+            return matchP3 ? matchP3[1] : (p3.length >= 5 ? p3.slice(-5) : p3);
+        }
+    }
+
+    const tokens = trimmed.split(/\s+/);
+    const lastToken = tokens[tokens.length - 1];
+    const match = lastToken.match(/(\d{5})$/);
+    if (match) return match[1];
+
+    const digitMatch = lastToken.match(/\d+/g);
+    if (digitMatch && digitMatch.length > 0) {
+        const lastGroup = digitMatch[digitMatch.length - 1];
+        if (lastGroup.length >= 5) return lastGroup.slice(-5);
+    }
+
+    return null;
+}
+
+// ========== IN-MEMORY CACHE ==========
+const materialNameCache = new Map(); // materialId -> name string
+
 // ========== EVENT HANDLERS ==========
 
 qrScanInput.addEventListener('input', handleQRScan);
@@ -107,11 +177,12 @@ function handleQRScan(e) {
         clearTimeout(qrScanTimeout);
     }
 
+    // Reduced from 300ms to 80ms — barcode scanners finish sending in <50ms
     qrScanTimeout = setTimeout(() => {
         if (scannedText && scannedText.length > 5) {
             processQRCode(scannedText);
         }
-    }, 300);
+    }, 80);
 }
 
 function processQRCode(scannedText) {
@@ -120,31 +191,30 @@ function processQRCode(scannedText) {
     if (parsed && parsed.id) {
         // Successfully parsed
         materialIdInput.value = parsed.id;
+        if (materialRidInput) {
+            materialRidInput.value = parsed.rid || '-';
+        }
 
         if (parsed.qty && parsed.qty > 0) {
-            // Calculate total quantity based on multiplier
             const multiplier = parseInt(multiplierInput.value) || 1;
             const totalQty = parsed.qty * multiplier;
-
             materialQuantityInput.value = totalQty;
 
-            // Show calculation info in toast if multiplier > 1
             if (multiplier > 1) {
                 showToast(`Info: ${parsed.qty} x ${multiplier} roll = ${totalQty} pcs`, 'info');
             }
         }
 
-        // Clear scan input
+        // Clear scan input immediately
         qrScanInput.value = '';
 
-        // Show success feedback
-        showToast('QR Code berhasil di-scan! Memproses...', 'success');
+        const ridNotice = parsed.rid ? ` (RID: ${parsed.rid})` : '';
+        showToast(`QR Code berhasil di-scan${ridNotice}! Memproses...`, 'success');
 
-        // AUTO SUBMIT
-        // Use a small timeout to allow UI update
+        // AUTO SUBMIT — reduced from 500ms to 100ms
         setTimeout(() => {
             submitBtn.click();
-        }, 500);
+        }, 100);
     } else {
         showQRErrorModal();
     }
@@ -183,6 +253,9 @@ form.addEventListener('submit', async (e) => {
 
     const id = materialIdInput.value.trim();
     const quantity = parseInt(materialQuantityInput.value);
+    const rid = materialRidInput && materialRidInput.value && materialRidInput.value !== '-'
+        ? materialRidInput.value.trim()
+        : null;
 
     if (!id || !quantity) {
         showError('ID dan Quantity harus terisi');
@@ -193,32 +266,28 @@ form.addEventListener('submit', async (e) => {
     submitBtn.textContent = '\u23F3 Memproses...';
 
     try {
-        // 1. Find name from existing material or master catalog
+        // 1. Find name — check cache first, then fetch both sources in parallel
         let name = '';
-        try {
-            const checkRes = await fetch(`/api/materials/${id}`);
-            if (checkRes.ok) {
-                const checkData = await checkRes.json();
-                if (checkData.data && checkData.data.name) {
-                    name = checkData.data.name;
-                }
-            }
-        } catch (err) {
-            console.warn('Could not check existing material name');
-        }
 
-        if (!name) {
-            try {
-                const catalogRes = await fetch(`/api/material-catalog/${id}`);
-                if (catalogRes.ok) {
-                    const catalogData = await catalogRes.json();
-                    if (catalogData.data && catalogData.data.material_name) {
-                        name = catalogData.data.material_name;
-                    }
-                }
-            } catch (err) {
-                console.warn('Could not check material master name');
+        if (materialNameCache.has(id)) {
+            name = materialNameCache.get(id);
+        } else {
+            const [materialRes, catalogRes] = await Promise.all([
+                fetch(`/api/materials/${id}`).catch(() => null),
+                fetch(`/api/material-catalog/${id}`).catch(() => null)
+            ]);
+
+            if (materialRes && materialRes.ok) {
+                const d = await materialRes.json().catch(() => null);
+                if (d && d.data && d.data.name) name = d.data.name;
             }
+
+            if (!name && catalogRes && catalogRes.ok) {
+                const d = await catalogRes.json().catch(() => null);
+                if (d && d.data && (d.data.specification || d.data.material_name)) name = d.data.specification || d.data.material_name;
+            }
+
+            if (name) materialNameCache.set(id, name);
         }
 
         if (!name) {
@@ -234,7 +303,8 @@ form.addEventListener('submit', async (e) => {
             },
             body: JSON.stringify({
                 id,
-                quantity
+                quantity,
+                rid
             })
         });
 
@@ -242,18 +312,25 @@ form.addEventListener('submit', async (e) => {
 
         if (response.ok && data.success) {
             const savedName = data.data && data.data.name ? data.data.name : name;
-            showSuccess(`Berhasil! ${savedName} (+${quantity})`);
+            const ridText = rid ? ` [RID: ${rid}]` : '';
+            showSuccess(`Berhasil! ${savedName}${ridText} (+${quantity})`);
             showToast('Material berhasil di-input!', 'success');
 
             // Add to history
-            addToHistory(id, savedName, quantity);
+            addToHistory(id, savedName, quantity, rid);
 
             // Auto reset form but KEEP multiplier
             setTimeout(() => {
                 resetForm();
             }, 1000);
         } else {
-            showError(data.error || 'Gagal menyimpan material');
+            const errorMsg = data.error || 'Gagal menyimpan material';
+            showError(errorMsg);
+            showToast(errorMsg, 'error');
+            if (qrScanInput) {
+                qrScanInput.value = '';
+                qrScanInput.focus();
+            }
         }
 
     } catch (error) {
@@ -281,9 +358,10 @@ function showError(message) {
 
 // ========== HISTORY FUNCTIONS ==========
 
-function addToHistory(id, name, qty) {
+function addToHistory(id, name, qty, rid = null) {
     const entry = {
         id,
+        rid: rid || '-',
         name,
         qty,
         timestamp: new Date()
@@ -300,7 +378,7 @@ function renderHistory() {
     if (inputHistory.length === 0) {
         historyTableBody.innerHTML = `
             <tr>
-                <td colspan="3" style="text-align: center; padding: 15px; color: var(--light-text); font-style: italic;">
+                <td colspan="4" style="text-align: center; padding: 15px; color: var(--light-text); font-style: italic;">
                     Belum ada data input di sesi ini
                 </td>
             </tr>
@@ -314,10 +392,13 @@ function renderHistory() {
     historyTableBody.innerHTML = inputHistory.map(item => `
         <tr>
             <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">
-                <div style="font-weight: 600;">${item.id}</div>
+                <div style="font-weight: 600; font-family: 'Courier New', monospace;">${item.id}</div>
                 <div style="font-size: 12px; color: var(--light-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;">
                     ${item.name}
                 </div>
+            </td>
+            <td style="padding: 8px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+                ${item.rid && item.rid !== '-' ? `<span style="background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace;">${item.rid}</span>` : '<span style="color: var(--light-text);">-</span>'}
             </td>
             <td style="padding: 8px; text-align: right; border-bottom: 1px solid #e5e7eb; font-weight: bold; color: var(--success-color);">
                 +${item.qty}

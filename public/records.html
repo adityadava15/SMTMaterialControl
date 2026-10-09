@@ -1,11 +1,41 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="h-full bg-slate-50">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Transaction Records - SMT Material Control</title>
     <link rel="icon" href="/img/SMT.png?v=5" type="image/png">
+
+    <!-- Inter Font (Offline) -->
+    <link rel="stylesheet" href="/libs/inter-font.css">
+
+    <!-- Tailwind CSS (Offline) -->
+    <script src="/libs/tailwind.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            DEFAULT: "#091540",
+                            hover: "#142563",
+                            active: "#060e2a",
+                            light: "#f0f3fa",
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Lucide Icons (Offline) -->
+    <script src="/libs/lucide.min.js"></script>
+
     <link rel="stylesheet" href="/css/styles.css">
     <style>
         .meter-dropdown-btn {
@@ -49,7 +79,7 @@
 
         .meter-detail-panel {
             padding: 14px 18px;
-            border-left: 4px solid #2563eb;
+            border-left: 4px solid #091540;
             animation: subrowFadeIn 0.2s ease-out;
         }
 
@@ -106,119 +136,206 @@
     </style>
 </head>
 
-<body>
-    <div class="dashboard">
-        <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                    <img src="/img/SMT.png" alt="SMT Logo" style="height: 40px; width: auto;">
-                    <div style="text-align: center;">
-                        <h2 style="font-size: 16px; margin: 0; font-weight: 700;">SMT Material</h2>
-                        <p style="font-size: 11px; margin: 0; opacity: 0.8;">Control System</p>
-                    </div>
+<body class="h-full bg-slate-50 text-slate-900 antialiased flex flex-col">
+
+    <div class="flex-1 flex overflow-hidden">
+        <!-- Sidebar Navigation (Shadcn Style - Midnight Navy) -->
+        <aside id="sidebar" class="w-64 border-r border-white/10 bg-[#091540] text-white flex flex-col shrink-0 transition-all duration-300 z-40 hidden md:flex">
+            <!-- Sidebar Header -->
+            <div class="h-16 border-b border-white/10 flex items-center px-6 gap-3">
+                <img src="/img/SMT.png" alt="SMT Logo" class="h-8 w-auto object-contain">
+                <div>
+                    <h2 class="text-sm font-bold tracking-tight text-white leading-tight">SMT Material</h2>
+                    <p class="text-[11px] text-slate-400 font-medium leading-none">Control System</p>
                 </div>
             </div>
-            <nav class="nav-menu">
-                <a href="/dashboard.html" class="nav-item">
-                    <span class="nav-icon">&#128202;</span>
+
+            <!-- Navigation Links -->
+            <div class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+                <div class="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Menu Utama</div>
+
+                <!-- Dashboard -->
+                <a href="/dashboard.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4 text-slate-400"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="/material-input-scan.html" class="nav-item">
-                    <span class="nav-icon">&#128229;</span>
-                    <span>Material Input</span>
+
+                <!-- Material Input Scan -->
+                <a href="/material-input-scan.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                    <i data-lucide="scan-barcode" class="w-4 h-4 text-slate-400"></i>
+                    <span>Material Input (Scan)</span>
                 </a>
-                <a href="/material-input.html" class="nav-item">
-                    <span class="nav-icon">&#9997;&#65039;</span>
+
+                <!-- Manual Input -->
+                <a href="/material-input.html" id="inputLink" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                    <i data-lucide="pen-tool" class="w-4 h-4 text-slate-400"></i>
                     <span>Manual Material Input</span>
                 </a>
-                <div class="nav-dropdown" id="navOutputDropdown">
-                    <div class="nav-item nav-dropdown-toggle" id="navOutputToggle" onclick="toggleNavDropdown('navOutputDropdown')">
-                        <div class="nav-dropdown-label">
-                            <span class="nav-icon">&#128228;</span>
-                            <span>Material Output</span>
-                        </div>
-                        <span class="nav-dropdown-arrow">&#9662;</span>
-                    </div>
-                    <div class="nav-submenu">
-                        <a href="/material-output.html" class="nav-subitem" id="navSubOutputStok">
-                            <span class="nav-subitem-icon">&#128230;</span>
-                            <span>Output Stok</span>
-                        </a>
-                        <a href="/material-output-machine.html" class="nav-subitem" id="navSubOutputMesin">
-                            <span class="nav-subitem-icon">&#9881;&#65039;</span>
-                            <span>Output Mesin</span>
-                        </a>
-                    </div>
-                </div>
-                <a href="/records.html" class="nav-item active">
-                    <span class="nav-icon">&#128203;</span>
-                    <span>Records</span>
-                </a>
-                <a href="/master-materials.html" class="nav-item superadmin-nav-item" id="navMasterMaterials" style="display: none;">
-                    <span class="nav-icon">&#128196;</span>
-                    <span>Master Material</span>
-                </a>
-            </nav>
-        </aside>
 
-        <!-- Main Content -->
-        <main class="main-content" id="mainContent">
-            <div class="top-bar">
-                <button class="toggle-btn" onclick="toggleSidebar()">&#9776;</button>
-                <div class="user-dropdown">
-                    <div class="user-info" onclick="toggleUserDropdown()">
-                        <span id="welcomeText">Transaction Records</span>
-                        <span class="user-role" id="userRole">User</span>
-                        <span style="font-size: 10px;">&#9660;</span>
-                    </div>
-                    <div class="dropdown-content" id="userDropdownContent">
-                        <a href="/profile.html">&#128100; My Profile</a>
-                        <a href="#" onclick="logout()">&#128682; Logout</a>
+                <!-- Output Dropdown -->
+                <div class="pt-2">
+                    <div class="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Material Output</div>
+                    <a href="/material-output.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                        <i data-lucide="package-minus" class="w-4 h-4 text-slate-400"></i>
+                        <span>Output Stok</span>
+                    </a>
+                    <a href="/material-output-machine.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                        <i data-lucide="cpu" class="w-4 h-4 text-slate-400"></i>
+                        <span>Output Mesin</span>
+                    </a>
+                </div>
+
+                <div class="pt-2">
+                    <div class="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Laporan & Pengaturan</div>
+                    <!-- Records (Active) -->
+                    <a href="/records.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg bg-[#142563] text-white transition shadow-sm">
+                        <i data-lucide="clipboard-list" class="w-4 h-4 text-white"></i>
+                        <span>Records</span>
+                    </a>
+                    <!-- Master Data Dropdown in Sidebar -->
+                    <div>
+                        <button type="button" onclick="toggleSidebarMasterDropdown()" id="navMasterToggle" class="w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition cursor-pointer">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="file-spreadsheet" class="w-4 h-4 text-slate-400"></i>
+                                <span>Master Data</span>
+                            </div>
+                            <i data-lucide="chevron-down" id="navMasterArrow" class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200"></i>
+                        </button>
+                        <div id="navMasterSubmenu" class="hidden pl-4 pr-1 py-1 space-y-1 mt-1">
+                            <a href="/master-materials.html" id="navSubMaster" class="flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                                <i data-lucide="box" class="w-3.5 h-3.5 text-slate-400"></i>
+                                <span>Master</span>
+                            </a>
+                            <a href="/master-materials.html?category=meter_quantity" id="navSubMeterQuantity" class="flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                                <i data-lucide="gauge" class="w-3.5 h-3.5 text-slate-400"></i>
+                                <span>Meter Komponen Quantity</span>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="content-area">
-                <h1 style="margin-bottom: 24px; font-size: 28px;">&#128203; Transaction Records</h1>
+            <!-- Sidebar Footer -->
+            <div class="p-3 border-t border-white/10 bg-[#060e2a]/50 flex items-center justify-between text-xs text-slate-400">
+                <span class="text-[11px] font-medium text-slate-400">v1.0.0 &bull; SMT Control</span>
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    Online
+                </span>
+            </div>
+        </aside>
 
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">Riwayat Input & Output Material</h2>
+        <!-- Main Content Area -->
+        <div id="mainContent" class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+            <!-- Top Navbar -->
+            <header class="h-16 border-b border-slate-200 bg-white px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 shrink-0">
+                <div class="flex items-center gap-3">
+                    <button id="toggleBtn" onclick="toggleSidebar()" class="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition" title="Toggle Sidebar">
+                        <i data-lucide="panel-left" class="w-4 h-4"></i>
+                    </button>
+                    <div>
+                        <h1 class="text-base sm:text-lg font-semibold tracking-tight text-slate-900">Transaction Records</h1>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <button id="userMenuBtn" onclick="toggleUserDropdown()" class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition text-left">
+                            <div class="w-8 h-8 rounded-full bg-[#091540] text-white flex items-center justify-center text-xs font-bold" id="userAvatar">
+                                U
+                            </div>
+                            <div class="hidden sm:block text-xs">
+                                <div class="font-semibold text-slate-900 leading-tight" id="welcomeText">User</div>
+                                <div class="text-[10px] font-medium text-slate-500 uppercase tracking-wide" id="userRole">User</div>
+                            </div>
+                            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+                        </button>
+                        <div id="userDropdownContent" class="hidden absolute right-0 mt-2 w-52 rounded-xl border border-slate-200 bg-white shadow-lg p-1 z-50">
+                            <div class="px-3 py-2 border-b border-slate-100 text-xs">
+                                <p class="font-medium text-slate-900" id="dropdownUserName">User</p>
+                                <p class="text-[11px] text-slate-500" id="dropdownUserRole">Role: -</p>
+                            </div>
+                            <a href="/profile.html" class="flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg text-slate-700 hover:bg-slate-100 transition">
+                                <i data-lucide="user" class="w-4 h-4 text-slate-500"></i>
+                                <span>Profil Saya</span>
+                            </a>
+                            <button onclick="logout()" class="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg text-red-600 hover:bg-red-50 transition text-left">
+                                <i data-lucide="log-out" class="w-4 h-4 text-red-500"></i>
+                                <span>Keluar</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="p-4 sm:p-6 space-y-6 flex-1 max-w-7xl">
+                <!-- Page Title -->
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Transaction Records</h1>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-1">Riwayat lengkap mutasi material (Input &amp; Output Stok / Output Mesin) SMT.</p>
+                </div>
+
+                <!-- Main Card -->
+                <div class="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
+                    <div class="border-b border-slate-100 pb-3">
+                        <h2 class="text-sm font-semibold text-slate-900">Riwayat Input &amp; Output Material</h2>
                     </div>
 
-                    <div class="search-bar">
-                        <input type="text" id="searchInput" class="form-input search-input"
-                            placeholder="Cari material ID, nama, type meter...">
-                        <select id="typeFilter" class="select-input" style="width: 150px;">
+                    <!-- Filters -->
+                    <div class="flex flex-wrap items-center gap-2.5 text-xs">
+                        <div class="relative flex-1 min-w-[200px]">
+                            <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                            <input type="text" id="searchInput"
+                                class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-[#091540]"
+                                placeholder="Cari material ID, spesifikasi, type meter...">
+                        </div>
+
+                        <select id="typeFilter"
+                            class="px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#091540]">
                             <option value="">Semua Tipe</option>
                             <option value="INPUT">Input</option>
                             <option value="OUTPUT">Output</option>
                         </select>
-                        <input type="datetime-local" id="startDateTimeFilter" class="form-input"
-                            style="width: 220px;" title="Dari tanggal & waktu">
-                        <input type="datetime-local" id="endDateTimeFilter" class="form-input"
-                            style="width: 220px;" title="Sampai tanggal & waktu">
-                        <button class="btn btn-primary btn-sm" onclick="applyFilters()">&#128269; Filter</button>
-                        <button class="btn btn-secondary btn-sm" onclick="resetFilters()">Reset</button>
+
+                        <input type="datetime-local" id="startDateTimeFilter"
+                            class="px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#091540]"
+                            title="Dari tanggal & waktu">
+
+                        <span class="text-slate-400">s/d</span>
+
+                        <input type="datetime-local" id="endDateTimeFilter"
+                            class="px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#091540]"
+                            title="Sampai tanggal & waktu">
+
+                        <button class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#091540] hover:bg-[#142563] text-white font-medium transition cursor-pointer"
+                            onclick="applyFilters()">
+                            <i data-lucide="filter" class="w-3.5 h-3.5"></i>
+                            <span>Filter</span>
+                        </button>
+
+                        <button class="px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 font-medium transition cursor-pointer"
+                            onclick="resetFilters()">
+                            Reset
+                        </button>
                     </div>
 
-                    <div class="table-container">
-                        <table>
-                            <thead>
+                    <!-- Table -->
+                    <div class="rounded-lg border border-slate-200 overflow-hidden">
+                        <table class="w-full text-xs text-left">
+                            <thead class="bg-slate-50/75 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
                                 <tr>
-                                    <th>Tanggal & Waktu</th>
-                                    <th>Tipe</th>
-                                    <th>Material ID</th>
-                                    <th>Material Name</th>
-                                    <th>Quantity</th>
-                                    <th>User</th>
-                                    <th style="min-width: 180px;">Output Mesin</th>
+                                    <th class="py-2.5 px-4">Tanggal & Waktu</th>
+                                    <th class="py-2.5 px-4">Tipe</th>
+                                    <th class="py-2.5 px-4">Material ID</th>
+                                    <th class="py-2.5 px-4">RID</th>
+                                    <th class="py-2.5 px-4">Spesifikasi</th>
+                                    <th class="py-2.5 px-4 text-right">Quantity</th>
+                                    <th class="py-2.5 px-4">User</th>
+                                    <th class="py-2.5 px-4" style="min-width: 180px;">Output Mesin</th>
                                 </tr>
                             </thead>
-                            <tbody id="recordsTableBody">
+                            <tbody id="recordsTableBody" class="divide-y divide-slate-100 bg-white">
                                 <tr>
-                                    <td colspan="7" style="text-align: center; padding: 40px;">
+                                    <td colspan="8" class="text-center py-8 text-slate-400">
                                         <div class="spinner"></div>
                                     </td>
                                 </tr>
@@ -228,9 +345,12 @@
 
                     <div class="pagination" id="pagination"></div>
                 </div>
-            </div>
-        </main>
+            </main>
+        </div>
     </div>
+
+    <!-- Mobile Drawer Backdrop -->
+    <div id="mobileBackdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 hidden md:hidden" onclick="toggleSidebar()"></div>
 
     <script src="/js/utils.js"></script>
     <script src="/js/session-timeout.js"></script>
@@ -331,7 +451,7 @@
             if (records.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7" style="text-align: center; padding: 40px; color: var(--light-text);">
+                        <td colspan="8" style="text-align: center; padding: 40px; color: var(--light-text);">
                             Tidak ada data transaksi
                         </td>
                     </tr>
@@ -381,7 +501,10 @@
                             </span>
                         </td>
                         <td style="font-family: 'Courier New', monospace; font-weight: bold;">${escapeHtml(record.material_id)}</td>
-                        <td>${escapeHtml(record.material_name)}</td>
+                        <td>
+                            ${record.rid ? `<span class="badge" style="background-color: #e0f2fe; color: #0369a1; font-size: 11px; padding: 2px 7px; border-radius: 4px; font-family: monospace; font-weight: 600;">${escapeHtml(record.rid)}</span>` : '<span style="color: var(--light-text);">-</span>'}
+                        </td>
+                        <td>${escapeHtml(record.specification || record.material_name)}</td>
                         <td style="font-weight: 700;">${formatNumber(record.quantity)} pcs</td>
                         <td>${escapeHtml(record.operator_name || record.display_user || record.username || '-')}</td>
                         <td>${outputMesinCell}</td>
@@ -394,6 +517,9 @@
             }
 
             tbody.innerHTML = html;
+            if (window.lucide) {
+                lucide.createIcons();
+            }
         }
 
         function renderDetailSubRow(record, mo) {
@@ -401,7 +527,7 @@
 
             return `
                 <tr id="detail-row-${record.id}" class="meter-detail-subrow" style="display: none;">
-                    <td colspan="7">
+                    <td colspan="8">
                         <div class="meter-detail-panel">
                             <div class="meter-detail-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -428,6 +554,7 @@
                                         <tr>
                                             <th style="width: 36px;">#</th>
                                             <th>Waktu Record</th>
+                                            <th>RID</th>
                                             <th>Type Meter</th>
                                             <th>Quantity Digunakan</th>
                                             <th>Sumber Mesin / Line</th>
@@ -446,11 +573,14 @@
                                                     <td style="color: var(--light-text);">${idx + 1}</td>
                                                     <td style="white-space: nowrap;">⏱️ ${formatDateTime(item.created_at)}</td>
                                                     <td>
+                                                        ${(item.rid || record.rid) ? `<span class="badge" style="background-color: #e0f2fe; color: #0369a1; font-size: 11px; padding: 1px 6px; border-radius: 3px; font-family: monospace;">${escapeHtml(item.rid || record.rid)}</span>` : '-'}
+                                                    </td>
+                                                    <td>
                                                         <span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; background: ${badgeInfo.bg}; border: 1px solid ${badgeInfo.border}; color: ${badgeInfo.text};">
                                                             🏷️ ${escapeHtml(item.meter_type)}
                                                         </span>
                                                     </td>
-                                                    <td style="font-weight: 700; color: #1e3a8a;">
+                                                    <td style="font-weight: 700; color: #091540;">
                                                         ${qtyDisplay}
                                                     </td>
                                                     <td style="color: #334155; font-weight: 500;">
@@ -466,7 +596,7 @@
                                 </table>
                             </div>
                             <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
-                                <a href="/material-output-machine.html" style="font-size: 12px; color: #2563eb; text-decoration: none; font-weight: 600;">
+                                <a href="/material-output-machine.html" style="font-size: 12px; color: #091540; text-decoration: none; font-weight: 600;">
                                     🔍 Buka Pemantau Output Mesin &rarr;
                                 </a>
                             </div>

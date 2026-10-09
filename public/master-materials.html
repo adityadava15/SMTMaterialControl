@@ -1,373 +1,410 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="h-full bg-slate-50">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Master Material SMT - SMT Material Control</title>
     <link rel="icon" href="/img/SMT.png?v=5" type="image/png">
+
+    <!-- Inter Font (Offline) -->
+    <link rel="stylesheet" href="/libs/inter-font.css">
+
+    <!-- Tailwind CSS (Offline) -->
+    <script src="/libs/tailwind.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            DEFAULT: "#091540",
+                            hover: "#142563",
+                            active: "#060e2a",
+                            light: "#f0f3fa",
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Lucide Icons (Offline) -->
+    <script src="/libs/lucide.min.js"></script>
+
+    <!-- Global Styles & Toast -->
     <link rel="stylesheet" href="/css/styles.css">
-    <style>
-        .master-header-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 12px;
-            background: #eff6ff;
-            border: 1px solid #bfdbfe;
-            color: #1d4ed8;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-        }
-
-        .master-badge-count {
-            background: #dcfce7;
-            border: 1px solid #86efac;
-            color: #15803d;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 700;
-        }
-
-        .excel-box {
-            background: #f8fafc;
-            border: 1px dashed #cbd5e1;
-            border-radius: 10px;
-            padding: 18px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 16px;
-        }
-
-        .excel-upload-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-            flex: 1;
-        }
-
-        .excel-upload-group input[type="file"] {
-            padding: 8px 12px;
-            background: white;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 13px;
-            max-width: 320px;
-            cursor: pointer;
-        }
-
-        .rule-note {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            background: #f0fdf4;
-            border: 1px solid #bbf7d0;
-            color: #166534;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 13px;
-            line-height: 1.5;
-            margin-bottom: 20px;
-        }
-
-        .rule-note strong {
-            color: #14532d;
-        }
-
-        .toolbar-flex {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .search-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-            flex: 1;
-            max-width: 500px;
-        }
-
-        .actions-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .material-id-cell {
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            font-weight: 700;
-            color: #1e3a8a;
-            background: #f1f5f9;
-            padding: 3px 8px;
-            border-radius: 5px;
-            display: inline-block;
-        }
-
-        /* Modal Styles */
-        .modal-body {
-            margin-top: 16px;
-            margin-bottom: 24px;
-        }
-
-        .modal-footer {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-    </style>
 </head>
 
-<body>
-    <div class="dashboard">
-        <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                    <img src="/img/SMT.png?v=5" alt="SMT Logo" style="height: 40px; width: auto;">
-                    <div style="text-align: center;">
-                        <h2 style="font-size: 16px; margin: 0; font-weight: 700;">SMT Material</h2>
-                        <p style="font-size: 11px; margin: 0; opacity: 0.8;">Control System</p>
-                    </div>
+<body class="h-full bg-slate-50 text-slate-900 antialiased flex flex-col">
+
+    <div class="flex-1 flex overflow-hidden">
+        <!-- Sidebar Navigation (Shadcn Style - Midnight Navy) -->
+        <aside id="sidebar" class="w-64 border-r border-white/10 bg-[#091540] text-white flex flex-col shrink-0 transition-all duration-300 z-40 hidden md:flex">
+            <!-- Sidebar Header -->
+            <div class="h-16 border-b border-white/10 flex items-center px-6 gap-3">
+                <img src="/img/SMT.png" alt="SMT Logo" class="h-8 w-auto object-contain">
+                <div>
+                    <h2 class="text-sm font-bold tracking-tight text-white leading-tight">SMT Material</h2>
+                    <p class="text-[11px] text-slate-400 font-medium leading-none">Control System</p>
                 </div>
             </div>
-            <nav class="nav-menu">
-                <a href="/dashboard.html" class="nav-item">
-                    <span class="nav-icon">&#128202;</span>
+
+            <!-- Navigation Links -->
+            <div class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+                <div class="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Menu Utama</div>
+
+                <!-- Dashboard -->
+                <a href="/dashboard.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4 text-slate-400"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="/material-input-scan.html" class="nav-item">
-                    <span class="nav-icon">&#128229;</span>
-                    <span>Material Input</span>
+
+                <!-- Material Input Scan -->
+                <a href="/material-input-scan.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                    <i data-lucide="scan-barcode" class="w-4 h-4 text-slate-400"></i>
+                    <span>Material Input (Scan)</span>
                 </a>
-                <a href="/material-input.html" class="nav-item" id="inputLink">
-                    <span class="nav-icon">&#9997;&#65039;</span>
+
+                <!-- Manual Input -->
+                <a href="/material-input.html" id="inputLink" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                    <i data-lucide="pen-tool" class="w-4 h-4 text-slate-400"></i>
                     <span>Manual Material Input</span>
                 </a>
-                <div class="nav-dropdown" id="navOutputDropdown">
-                    <div class="nav-item nav-dropdown-toggle" id="navOutputToggle" onclick="toggleNavDropdown('navOutputDropdown')">
-                        <div class="nav-dropdown-label">
-                            <span class="nav-icon">&#128228;</span>
-                            <span>Material Output</span>
+
+                <!-- Output Dropdown -->
+                <div class="pt-2">
+                    <div class="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Material Output</div>
+                    <a href="/material-output.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                        <i data-lucide="package-minus" class="w-4 h-4 text-slate-400"></i>
+                        <span>Output Stok</span>
+                    </a>
+                    <a href="/material-output-machine.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                        <i data-lucide="cpu" class="w-4 h-4 text-slate-400"></i>
+                        <span>Output Mesin</span>
+                    </a>
+                </div>
+
+                <div class="pt-2">
+                    <div class="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Laporan & Pengaturan</div>
+                    <a href="/records.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                        <i data-lucide="clipboard-list" class="w-4 h-4 text-slate-400"></i>
+                        <span>Records</span>
+                    </a>
+                    <!-- Master Data Dropdown in Sidebar -->
+                    <div>
+                        <button type="button" onclick="toggleSidebarMasterDropdown()" id="navMasterToggle" class="w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg text-white bg-[#142563] transition shadow-sm cursor-pointer">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="file-spreadsheet" class="w-4 h-4 text-white"></i>
+                                <span>Master Data</span>
+                            </div>
+                            <i data-lucide="chevron-down" id="navMasterArrow" class="w-3.5 h-3.5 text-slate-300 transition-transform duration-200"></i>
+                        </button>
+                        <div id="navMasterSubmenu" class="pl-4 pr-1 py-1 space-y-1 mt-1">
+                            <a href="/master-materials.html" id="navSubMaster" class="flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                                <i data-lucide="box" class="w-3.5 h-3.5 text-slate-400"></i>
+                                <span>Master</span>
+                            </a>
+                            <a href="/master-materials.html?category=meter_quantity" id="navSubMeterQuantity" class="flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                                <i data-lucide="gauge" class="w-3.5 h-3.5 text-slate-400"></i>
+                                <span>Meter Komponen Quantity</span>
+                            </a>
                         </div>
-                        <span class="nav-dropdown-arrow">&#9662;</span>
-                    </div>
-                    <div class="nav-submenu">
-                        <a href="/material-output.html" class="nav-subitem" id="navSubOutputStok">
-                            <span class="nav-subitem-icon">&#128230;</span>
-                            <span>Output Stok</span>
-                        </a>
-                        <a href="/material-output-machine.html" class="nav-subitem" id="navSubOutputMesin">
-                            <span class="nav-subitem-icon">&#9881;&#65039;</span>
-                            <span>Output Mesin</span>
-                        </a>
                     </div>
                 </div>
-                <a href="/records.html" class="nav-item">
-                    <span class="nav-icon">&#128203;</span>
-                    <span>Records</span>
-                </a>
-                <!-- Master Material (Superadmin Only) -->
-                <a href="/master-materials.html" class="nav-item active superadmin-nav-item" id="navMasterMaterials">
-                    <span class="nav-icon">&#128196;</span>
-                    <span>Master Material</span>
-                </a>
-            </nav>
+            </div>
+
+            <!-- Sidebar Footer -->
+            <div class="p-3 border-t border-white/10 bg-[#060e2a]/50 flex items-center justify-between text-xs text-slate-400">
+                <span class="text-[11px] font-medium text-slate-400">v1.0.0 &bull; SMT Control</span>
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    Online
+                </span>
+            </div>
         </aside>
 
-        <!-- Main Content -->
-        <main class="main-content" id="mainContent">
-            <div class="top-bar">
-                <button class="toggle-btn" onclick="toggleSidebar()">&#9776;</button>
-                <div class="user-dropdown">
-                    <div class="user-info" onclick="toggleUserDropdown()">
-                        <span id="welcomeText">Halo, Engineer</span>
-                        <span class="user-role" id="userRole">Superadmin</span>
-                        <span style="font-size: 10px;">&#9660;</span>
-                    </div>
-                    <div class="dropdown-content" id="userDropdownContent">
-                        <a href="/profile.html">&#128100; My Profile</a>
-                        <a href="#" onclick="logout()">&#128682; Logout</a>
+        <!-- Main Content Area -->
+        <div id="mainContent" class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+            <!-- Top Navbar -->
+            <header class="h-16 border-b border-slate-200 bg-white px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 shrink-0">
+                <div class="flex items-center gap-3">
+                    <button id="toggleBtn" onclick="toggleSidebar()" class="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition" title="Toggle Sidebar">
+                        <i data-lucide="panel-left" class="w-4 h-4"></i>
+                    </button>
+                    <div>
+                        <h1 class="text-base sm:text-lg font-semibold tracking-tight text-slate-900">Master Material</h1>
                     </div>
                 </div>
-            </div>
 
-            <div class="content-area">
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <button id="userMenuBtn" onclick="toggleUserDropdown()" class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition text-left">
+                            <div class="w-8 h-8 rounded-full bg-[#091540] text-white flex items-center justify-center text-xs font-bold" id="userAvatar">
+                                U
+                            </div>
+                            <div class="hidden sm:block text-xs">
+                                <div class="font-semibold text-slate-900 leading-tight" id="welcomeText">User</div>
+                                <div class="text-[10px] font-medium text-slate-500 uppercase tracking-wide" id="userRole">User</div>
+                            </div>
+                            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+                        </button>
+                        <div id="userDropdownContent" class="hidden absolute right-0 mt-2 w-52 rounded-xl border border-slate-200 bg-white shadow-lg p-1 z-50">
+                            <div class="px-3 py-2 border-b border-slate-100 text-xs">
+                                <p class="font-medium text-slate-900" id="dropdownUserName">User</p>
+                                <p class="text-[11px] text-slate-500" id="dropdownUserRole">Role: -</p>
+                            </div>
+                            <a href="/profile.html" class="flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg text-slate-700 hover:bg-slate-100 transition">
+                                <i data-lucide="user" class="w-4 h-4 text-slate-500"></i>
+                                <span>Profil Saya</span>
+                            </a>
+                            <button onclick="logout()" class="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg text-red-600 hover:bg-red-50 transition text-left">
+                                <i data-lucide="log-out" class="w-4 h-4 text-red-500"></i>
+                                <span>Keluar</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="p-4 sm:p-6 space-y-6 flex-1 max-w-7xl">
                 <!-- Page Header -->
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px;">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h1 style="margin: 0 0 6px 0; font-size: 26px; font-weight: 700; color: var(--dark-text); display: flex; align-items: center; gap: 10px;">
-                            <span>&#128196;</span> Master Data Material SMT
+                        <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+                            <span id="pageTitleText">Master Data Material SMT</span>
                         </h1>
-                        <p style="margin: 0; color: var(--light-text); font-size: 14px;">
-                            Kelola daftar katalog Material ID dan Nama Komponen untuk auto-complete nama saat scan input dan output mesin.
+                        <p class="text-xs sm:text-sm text-slate-500 mt-1" id="pageSubtitleText">
+                            Kelola daftar katalog Material ID dan Spesifikasi untuk auto-complete saat scan input dan output mesin.
                         </p>
                     </div>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <span class="master-header-badge">&#128274; Akses Superadmin</span>
-                        <span class="master-badge-count" id="totalMasterBadge">Memuat data...</span>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                            <span>Akses Admin &amp; Superadmin</span>
+                        </span>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200" id="totalMasterBadge">
+                            Memuat...
+                        </span>
                     </div>
                 </div>
 
-                <!-- Card: Import & Export Excel -->
-                <div class="card" style="border-top: 4px solid #2563eb;">
-                    <div class="card-header" style="margin-bottom: 12px;">
-                        <h2 class="card-title" style="font-size: 17px; display: flex; align-items: center; gap: 8px;">
-                            <span>&#128229;</span> Import &amp; Export Excel
-                        </h2>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="exportMasterExcel()" id="exportExcelBtn" style="padding: 6px 14px; font-size: 13px;">
-                            &#128228; Export ke Excel (.xlsx)
-                        </button>
-                    </div>
-
-                    <!-- Rule Note Box -->
-                    <div class="rule-note">
-                        <span style="font-size: 18px;">&#128161;</span>
-                        <div>
-                            <strong>Aturan Auto-Update Import Excel:</strong>
-                            Jika file Excel yang Anda impor memuat <em>Material ID</em> yang sudah pernah ada di database, sistem akan <strong>secara otomatis memperbarui (auto-update)</strong> nama material tersebut dengan data yang ada di Excel tanpa menyebabkan duplikasi. Baris baru yang belum terdaftar akan langsung ditambahkan.
-                        </div>
-                    </div>
-
-                    <!-- Upload Form -->
-                    <form id="masterUploadForm" class="excel-box" onsubmit="handleUploadExcel(event)">
-                        <div class="excel-upload-group">
-                            <label for="masterFileInput" style="font-weight: 600; font-size: 13px; color: var(--dark-text); white-space: nowrap;">
-                                File Excel Master:
-                            </label>
-                            <input type="file" id="masterFileInput" accept=".xlsx, .xls" required>
-                            <button type="submit" class="btn btn-primary btn-sm" id="uploadSubmitBtn" style="width: auto; padding: 8px 16px;">
-                                &#128229; Upload &amp; Update Excel
+                <!-- VIEW 1: MASTER (TABEL DATA MASTER AKTUAL) -->
+                <div id="viewMasterContainer" class="space-y-6">
+                    <!-- Card: Import & Export Excel -->
+                    <div class="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="file-up" class="w-4 h-4 text-slate-600"></i>
+                                <h2 class="text-sm font-semibold text-slate-900">Import &amp; Export Excel</h2>
+                            </div>
+                            <button type="button" onclick="exportMasterExcel()" id="exportExcelBtn"
+                                class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium transition cursor-pointer">
+                                <i data-lucide="file-down" class="w-3.5 h-3.5"></i>
+                                <span>Export ke Excel (.xlsx)</span>
                             </button>
                         </div>
-                        <div style="font-size: 12px; color: var(--light-text);">
-                            Format kolom: <strong>Kolom 1 (Material ID)</strong> &bull; <strong>Kolom 2 (Material Name)</strong>
+
+                        <!-- Rule Note Box -->
+                        <div class="flex items-start gap-2.5 p-3.5 rounded-lg bg-emerald-50/70 border border-emerald-200/60 text-emerald-800 text-xs leading-relaxed">
+                            <i data-lucide="info" class="w-4 h-4 text-emerald-600 shrink-0 mt-0.5"></i>
+                            <div>
+                                <strong class="text-emerald-900">Aturan Auto-Update Import Excel:</strong>
+                                Jika file Excel yang diimpor memuat <em>Material ID</em> yang sudah pernah ada di database, sistem akan secara otomatis memperbarui spesifikasi material tersebut tanpa menyebabkan duplikasi. Baris baru yang belum terdaftar akan langsung ditambahkan.
+                            </div>
                         </div>
-                    </form>
+
+                        <!-- Upload Form -->
+                        <form id="masterUploadForm" onsubmit="handleUploadExcel(event)"
+                            class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/50">
+                            <div class="flex flex-wrap items-center gap-3">
+                                <label for="masterFileInput" class="text-xs font-semibold text-slate-700">File Excel Master:</label>
+                                <input type="file" id="masterFileInput" accept=".xlsx, .xls" required
+                                    class="text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-slate-200 file:text-xs file:font-medium file:bg-white hover:file:bg-slate-100 cursor-pointer">
+                                <button type="submit" id="uploadSubmitBtn"
+                                    class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#091540] hover:bg-[#142563] text-white text-xs font-medium transition shadow-sm cursor-pointer">
+                                    <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                                    <span>Upload &amp; Update Excel</span>
+                                </button>
+                            </div>
+                            <div class="text-[11px] text-slate-400">
+                                Format kolom: <strong>Kolom 1 (ID)</strong> &bull; <strong>Kolom 2 (Specification)</strong> &bull; <strong>Kolom 3 (Qty)</strong> &bull; <strong>Kolom 4 (Unit)</strong>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Card: Master Data Table & Manual CRUD -->
+                    <div class="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                            <!-- Search Box -->
+                            <div class="flex items-center gap-2 flex-1 max-w-md">
+                                <div class="relative flex-1">
+                                    <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                    <input type="text" id="masterSearchInput"
+                                        class="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-slate-200 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#091540]"
+                                        placeholder="Cari ID, Specification, atau Unit...">
+                                </div>
+                                <button type="button" onclick="searchMaster(1)"
+                                    class="px-3 py-2 rounded-lg bg-[#091540] hover:bg-[#142563] text-white text-xs font-medium transition cursor-pointer">
+                                    Cari
+                                </button>
+                                <button type="button" onclick="resetSearchMaster()"
+                                    class="px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-medium transition cursor-pointer">
+                                    Reset
+                                </button>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="openAddModal()"
+                                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition shadow-sm cursor-pointer">
+                                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                                    <span>Tambah Material Manual</span>
+                                </button>
+                                <button type="button" onclick="loadMasterData(currentMasterPage)" title="Segarkan Data"
+                                    class="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition cursor-pointer">
+                                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Data Table -->
+                        <div class="rounded-lg border border-slate-200 overflow-hidden">
+                            <table class="w-full text-xs text-left">
+                                <thead class="bg-slate-50/75 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+                                    <tr>
+                                        <th class="py-2.5 px-4 w-12">#</th>
+                                        <th class="py-2.5 px-4 w-44">ID</th>
+                                        <th class="py-2.5 px-4">Specification</th>
+                                        <th class="py-2.5 px-4 w-20 text-center">Qty</th>
+                                        <th class="py-2.5 px-4 w-24 text-center">Unit</th>
+                                        <th class="py-2.5 px-4 w-44">Terakhir Diperbarui</th>
+                                        <th class="py-2.5 px-4 w-36 text-right">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="masterTableBody" class="divide-y divide-slate-100 bg-white">
+                                    <tr>
+                                        <td colspan="7" class="text-center py-8 text-slate-400">
+                                            <div class="spinner"></div>
+                                            <p class="text-xs text-slate-400 mt-2">Memuat data master material...</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                            <div id="masterPageInfo" class="text-xs text-slate-500 font-medium">
+                                Menampilkan 0 data
+                            </div>
+                            <div class="pagination" id="masterPagination"></div>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Card: Master Data Table & Manual CRUD -->
-                <div class="card">
-                    <div class="toolbar-flex">
-                        <!-- Search Box -->
-                        <div class="search-group">
-                            <input 
-                                type="text" 
-                                id="masterSearchInput" 
-                                class="form-input search-input" 
-                                placeholder="Cari Material ID atau Nama..." 
-                                style="max-width: 320px;"
-                            >
-                            <button type="button" class="btn btn-primary btn-sm" onclick="searchMaster(1)" style="width: auto;">
-                                &#128269; Cari
-                            </button>
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="resetSearchMaster()" style="width: auto;">
-                                Reset
-                            </button>
+                <!-- VIEW 2: METER KOMPONEN QUANTITY (KOSONGKAN DULU) -->
+                <div id="viewMeterQuantityContainer" class="space-y-6" style="display: none;">
+                    <div class="rounded-xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
+                                    <i data-lucide="gauge" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <h2 class="text-sm font-bold text-slate-900">Meter Komponen Quantity</h2>
+                                    <p class="text-[11px] text-slate-500">Katalog standar quantity komponen per type meter</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                    0 Data (Kosong)
+                                </span>
+                            </div>
                         </div>
 
-                        <!-- Action Buttons -->
-                        <div class="actions-group">
-                            <button type="button" class="btn btn-primary btn-sm" onclick="openAddModal()" style="width: auto; background: #16a34a; border-color: #16a34a;">
-                                &#10133; Tambah Material Manual
-                            </button>
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="loadMasterData(currentMasterPage)" title="Segarkan Data">
-                                &#128260; Refresh
-                            </button>
+                        <!-- Empty State Box -->
+                        <div class="text-center py-16 px-4 space-y-3">
+                            <div class="w-16 h-16 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto border border-purple-200/60 shadow-2xs">
+                                <i data-lucide="layers" class="w-8 h-8"></i>
+                            </div>
+                            <h3 class="text-base font-bold text-slate-800">Tabel Meter Komponen Quantity</h3>
+                            <p class="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                                Halaman untuk data <strong>Meter Komponen Quantity</strong> saat ini masih dikosongkan. Struktur dan tabel akan ditambahkan pada tahap pengembangan selanjutnya.
+                            </p>
+                            <div class="pt-2">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-50 text-slate-500 border border-slate-200">
+                                    <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                                    <span>Tabel Kosong (Belum ada data)</span>
+                                </span>
+                            </div>
                         </div>
-                    </div>
-
-                    <!-- Data Table -->
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th style="width: 40px;">#</th>
-                                    <th style="width: 200px;">Material ID</th>
-                                    <th>Nama Material</th>
-                                    <th style="width: 180px;">Terakhir Diperbarui</th>
-                                    <th style="width: 150px; text-align: right;">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="masterTableBody">
-                                <tr>
-                                    <td colspan="5" style="text-align: center; padding: 36px;">
-                                        <div class="spinner"></div>
-                                        <p style="margin-top: 10px; color: var(--light-text); font-size: 13px;">Memuat data master material...</p>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Pagination -->
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; padding-top: 14px; border-top: 1px solid #f1f5f9;">
-                        <div id="masterPageInfo" style="font-size: 13px; color: var(--light-text); font-weight: 500;">
-                            Menampilkan 0 data
-                        </div>
-                        <div class="pagination" id="masterPagination" style="margin-top: 0;"></div>
                     </div>
                 </div>
-            </div>
-        </main>
+            </main>
+        </div>
     </div>
+
+    <!-- Mobile Drawer Backdrop -->
+    <div id="mobileBackdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 hidden md:hidden" onclick="toggleSidebar()"></div>
 
     <!-- MODAL: TAMBAH MATERIAL MANUAL -->
     <div class="modal" id="addMaterialModal">
         <div class="modal-content">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: var(--dark-text);">
-                    &#10133; Tambah Material Master Manual
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="text-base font-semibold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-600"></i>
+                    <span>Tambah Material Master Manual</span>
                 </h3>
-                <button type="button" onclick="closeAddModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--light-text);">&times;</button>
+                <button type="button" onclick="closeAddModal()" class="text-slate-400 hover:text-slate-600 text-lg leading-none cursor-pointer">&times;</button>
             </div>
-            <form id="addMaterialForm" onsubmit="submitAddMaterial(event)">
-                <div class="modal-body">
-                    <div class="form-group" style="margin-bottom: 16px;">
-                        <label for="addMaterialId" style="display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px;">
-                            Material ID <span style="color: #dc2626;">*</span>
+            <form id="addMaterialForm" onsubmit="submitAddMaterial(event)" class="space-y-4 pt-3">
+                <div>
+                    <label for="addMaterialId" class="block text-xs font-semibold text-slate-700 mb-1">
+                        Material ID <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="addMaterialId" required autocomplete="off"
+                        class="w-full px-3.5 py-2 text-sm font-mono rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#091540]"
+                        placeholder="Scan barcode atau ketik manual">
+                    <p class="text-[11px] text-slate-400 mt-1">Scan barcode otomatis mengambil ID — atau ketik manual.</p>
+                    <div id="addMaterialIdFeedback" style="display: none;" class="text-xs mt-1 p-2 rounded-lg font-medium"></div>
+                </div>
+                <div>
+                    <label for="addSpecification" class="block text-xs font-semibold text-slate-700 mb-1">
+                        Specification <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="addSpecification" required
+                        class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#091540]"
+                        placeholder="Contoh: Resistor;33Ω;1%;1/8W;100.0ppm;0805">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="addQty" class="block text-xs font-semibold text-slate-700 mb-1">
+                            Qty <span class="text-red-500">*</span>
                         </label>
-                        <input 
-                            type="text" 
-                            id="addMaterialId" 
-                            class="form-input" 
-                            placeholder="Contoh: 2010101620" 
-                            required 
-                            style="font-family: 'Courier New', monospace; font-weight: 600;"
-                        >
-                        <small style="color: var(--light-text); font-size: 11px;">Harus unik, huruf/angka sesuai barcode komponen.</small>
+                        <input type="number" id="addQty" required min="1" value="1"
+                            class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#091540]">
                     </div>
-                    <div class="form-group" style="margin-bottom: 8px;">
-                        <label for="addMaterialName" style="display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px;">
-                            Nama Material <span style="color: #dc2626;">*</span>
+                    <div>
+                        <label for="addUnit" class="block text-xs font-semibold text-slate-700 mb-1">
+                            Unit <span class="text-red-500">*</span>
                         </label>
-                        <input 
-                            type="text" 
-                            id="addMaterialName" 
-                            class="form-input" 
-                            placeholder="Contoh: Resistor 5% 1/16W" 
-                            required
-                        >
+                        <input type="text" id="addUnit" required value="PCS"
+                            class="w-full px-3.5 py-2 text-sm uppercase rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#091540]"
+                            placeholder="PCS">
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="closeAddModal()" style="width: auto;">
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button type="button" onclick="closeAddModal()"
+                        class="px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition cursor-pointer">
                         Batal
                     </button>
-                    <button type="submit" class="btn btn-primary btn-sm" id="saveAddBtn" style="width: auto; background: #16a34a;">
-                        &#128190; Simpan Material
+                    <button type="submit" id="saveAddBtn"
+                        class="px-4 py-2 text-xs font-medium rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-sm cursor-pointer">
+                        Simpan Material
                     </button>
                 </div>
             </form>
@@ -377,45 +414,57 @@
     <!-- MODAL: EDIT MATERIAL MANUAL -->
     <div class="modal" id="editMaterialModal">
         <div class="modal-content">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: var(--dark-text);">
-                    &#9999;&#65039; Edit Master Material
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="text-base font-semibold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="edit-3" class="w-4 h-4 text-blue-600"></i>
+                    <span>Edit Master Material</span>
                 </h3>
-                <button type="button" onclick="closeEditModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--light-text);">&times;</button>
+                <button type="button" onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 text-lg leading-none cursor-pointer">&times;</button>
             </div>
-            <form id="editMaterialForm" onsubmit="submitEditMaterial(event)">
+            <form id="editMaterialForm" onsubmit="submitEditMaterial(event)" class="space-y-4 pt-3">
                 <input type="hidden" id="editOriginalId">
-                <div class="modal-body">
-                    <div class="form-group" style="margin-bottom: 16px;">
-                        <label for="editMaterialId" style="display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px;">
-                            Material ID <span style="color: #dc2626;">*</span>
+                <div>
+                    <label for="editMaterialId" class="block text-xs font-semibold text-slate-700 mb-1">
+                        Material ID <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="editMaterialId" required autocomplete="off"
+                        class="w-full px-3.5 py-2 text-sm font-mono rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#091540]"
+                        placeholder="Scan barcode atau ketik manual">
+                    <p class="text-[11px] text-slate-400 mt-1">Scan barcode otomatis mengambil ID — atau ketik manual.</p>
+                    <div id="editMaterialIdFeedback" style="display: none;" class="text-xs mt-1 p-2 rounded-lg font-medium"></div>
+                </div>
+                <div>
+                    <label for="editSpecification" class="block text-xs font-semibold text-slate-700 mb-1">
+                        Specification <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="editSpecification" required
+                        class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#091540]">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="editQty" class="block text-xs font-semibold text-slate-700 mb-1">
+                            Qty <span class="text-red-500">*</span>
                         </label>
-                        <input 
-                            type="text" 
-                            id="editMaterialId" 
-                            class="form-input" 
-                            required 
-                            style="font-family: 'Courier New', monospace; font-weight: 600;"
-                        >
+                        <input type="number" id="editQty" required min="1" value="1"
+                            class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#091540]">
                     </div>
-                    <div class="form-group" style="margin-bottom: 8px;">
-                        <label for="editMaterialName" style="display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px;">
-                            Nama Material <span style="color: #dc2626;">*</span>
+                    <div>
+                        <label for="editUnit" class="block text-xs font-semibold text-slate-700 mb-1">
+                            Unit <span class="text-red-500">*</span>
                         </label>
-                        <input 
-                            type="text" 
-                            id="editMaterialName" 
-                            class="form-input" 
-                            required
-                        >
+                        <input type="text" id="editUnit" required value="PCS"
+                            class="w-full px-3.5 py-2 text-sm uppercase rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#091540]"
+                            placeholder="PCS">
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="closeEditModal()" style="width: auto;">
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button type="button" onclick="closeEditModal()"
+                        class="px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition cursor-pointer">
                         Batal
                     </button>
-                    <button type="submit" class="btn btn-primary btn-sm" id="saveEditBtn" style="width: auto;">
-                        &#128190; Simpan Perubahan
+                    <button type="submit" id="saveEditBtn"
+                        class="px-4 py-2 text-xs font-medium rounded-lg bg-[#091540] hover:bg-[#142563] text-white transition shadow-sm cursor-pointer">
+                        Simpan Perubahan
                     </button>
                 </div>
             </form>
@@ -426,6 +475,13 @@
     <script src="/js/utils.js"></script>
     <script src="/js/session-timeout.js"></script>
     <script src="/js/master-materials.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+        });
+    </script>
 </body>
 
 </html>

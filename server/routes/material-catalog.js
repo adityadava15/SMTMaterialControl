@@ -3,7 +3,7 @@ const multer = require('multer');
 const XLSX = require('xlsx');
 const router = express.Router();
 const db = require('../config/database');
-const { isAuthenticated, canAccessMaterials, isSuperAdmin } = require('../middleware/auth');
+const { isAuthenticated, canAccessMaterials, canAccessMasterData } = require('../middleware/auth');
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -12,11 +12,31 @@ const upload = multer({
     }
 });
 
+function extractMaterialID(text) {
+    if (!text || typeof text !== 'string') return '';
+    const trimmed = text.trim();
+    if (!trimmed) return '';
+    const upper = trimmed.toUpperCase();
+    if (upper.startsWith('Z01') || upper.startsWith('Z0')) {
+        const tokens = trimmed.split(/\s+/);
+        if (tokens.length > 5 && tokens[5] !== 'null') {
+            return tokens[5].trim();
+        }
+    }
+    const ampIndex = trimmed.indexOf('&');
+    if (ampIndex > 0) {
+        return trimmed.substring(0, ampIndex).trim();
+    }
+    return trimmed;
+}
+
 function normalizeCatalogRows(rawRows) {
     if (!rawRows || rawRows.length === 0) return [];
 
     let idCol = 0;
-    let nameCol = 1;
+    let specCol = 1;
+    let qtyCol = -1;
+    let unitCol = -1;
     let startRow = 0;
 
     // Scan first 5 rows to detect header names if present
@@ -25,29 +45,49 @@ function normalizeCatalogRows(rawRows) {
         if (!Array.isArray(row)) continue;
 
         let detectedId = -1;
-        let detectedName = -1;
+        let detectedSpec = -1;
+        let detectedQty = -1;
+        let detectedUnit = -1;
 
         row.forEach((cell, idx) => {
             const val = String(cell || '').trim().toLowerCase();
-            if (val === 'material id' || val === 'material_id' || val === 'kode material' || val === 'part number' || val === 'part no' || val === 'item code') {
+            if (val === 'id' || val === 'material id' || val === 'material_id' || val === 'kode material' || val === 'part number' || val === 'part no' || val === 'item code') {
                 detectedId = idx;
-            } else if ((val === 'id' || val === 'kode') && detectedId === -1) {
+            } else if (val === 'kode' && detectedId === -1) {
                 detectedId = idx;
             }
 
-            if (val === 'material name' || val === 'material_name' || val === 'nama material' || val === 'description' || val === 'deskripsi' || val === 'part name') {
-                detectedName = idx;
-            } else if ((val === 'name' || val === 'nama') && detectedName === -1) {
-                detectedName = idx;
+            if (val === 'specification' || val === 'spesifikasi' || val === 'spec' || val === 'spek' || val === 'material name' || val === 'material_name' || val === 'nama material' || val === 'description' || val === 'deskripsi' || val === 'part name') {
+                detectedSpec = idx;
+            } else if ((val === 'name' || val === 'nama') && detectedSpec === -1) {
+                detectedSpec = idx;
+            }
+
+            if (val === 'qty' || val === 'quantity' || val === 'jumlah' || val === 'kuantitas' || val === 'total') {
+                detectedQty = idx;
+            }
+
+            if (val === 'unit' || val === 'satuan' || val === 'uom') {
+                detectedUnit = idx;
             }
         });
 
-        if (detectedId !== -1 && detectedName !== -1) {
+        if (detectedId !== -1 && detectedSpec !== -1) {
             idCol = detectedId;
-            nameCol = detectedName;
+            specCol = detectedSpec;
+            if (detectedQty !== -1) qtyCol = detectedQty;
+            if (detectedUnit !== -1) unitCol = detectedUnit;
             startRow = r + 1;
             break;
         }
+    }
+
+    // Default column index fallback if headers were not detected but at least 4 columns exist
+    if (qtyCol === -1 && rawRows[startRow] && rawRows[startRow].length >= 3) {
+        qtyCol = 2;
+    }
+    if (unitCol === -1 && rawRows[startRow] && rawRows[startRow].length >= 4) {
+        unitCol = 3;
     }
 
     const map = new Map();
@@ -56,15 +96,28 @@ function normalizeCatalogRows(rawRows) {
         const row = rawRows[i];
         if (!Array.isArray(row)) continue;
 
-        const materialId = String(row[idCol] ?? '').trim();
-        const materialName = String(row[nameCol] ?? '').trim();
+        const rawId = String(row[idCol] ?? '').trim();
+        const materialId = extractMaterialID(rawId);
+        const specification = String(row[specCol] ?? '').trim();
 
-        if (!materialId || !materialName) continue;
+        let qty = 1;
+        if (qtyCol !== -1 && row[qtyCol] !== undefined && row[qtyCol] !== null && String(row[qtyCol]).trim() !== '') {
+            const parsed = parseInt(String(row[qtyCol]).replace(/[^0-9]/g, ''), 10);
+            if (!isNaN(parsed) && parsed > 0) qty = parsed;
+        }
+
+        let unit = 'PCS';
+        if (unitCol !== -1 && row[unitCol] !== undefined && row[unitCol] !== null && String(row[unitCol]).trim() !== '') {
+            const trimmedUnit = String(row[unitCol]).trim().toUpperCase();
+            if (trimmedUnit) unit = trimmedUnit;
+        }
+
+        if (!materialId || !specification) continue;
 
         const idLower = materialId.toLowerCase();
-        const nameLower = materialName.toLowerCase();
+        const specLower = specification.toLowerCase();
         const isHeaderLike =
-            (idLower.includes('material') && nameLower.includes('name')) ||
+            (idLower.includes('material') && (specLower.includes('name') || specLower.includes('spec') || specLower.includes('spesifikasi'))) ||
             idLower === 'id' ||
             idLower === 'material_id' ||
             idLower === 'kode material';
@@ -72,30 +125,30 @@ function normalizeCatalogRows(rawRows) {
         if (isHeaderLike) continue;
 
         // Upsert in map: latest row wins if duplicate within same Excel file
-        map.set(materialId, { materialId, materialName });
+        map.set(materialId, { materialId, specification, qty, unit, materialName: specification });
     }
 
     return Array.from(map.values());
 }
 
-// Get catalog list (Superadmin)
-router.get('/', isAuthenticated, isSuperAdmin, async (req, res) => {
+// Get catalog list (Superadmin & Admin)
+router.get('/', isAuthenticated, canAccessMasterData, async (req, res) => {
     try {
         const { page = 1, limit = 50, search = '' } = req.query;
         const pageNum = parseInt(page, 10) || 1;
         const limitNum = parseInt(limit, 10) || 50;
         const offset = (pageNum - 1) * limitNum;
 
-        let query = 'SELECT material_id, material_name, created_at, updated_at FROM material_catalog';
+        let query = 'SELECT material_id, specification, qty, unit, specification AS material_name, created_at, updated_at FROM material_catalog';
         let countQuery = 'SELECT COUNT(*) AS total FROM material_catalog';
         const params = [];
         const countParams = [];
 
         if (search) {
-            query += ' WHERE material_id LIKE ? OR material_name LIKE ?';
-            countQuery += ' WHERE material_id LIKE ? OR material_name LIKE ?';
-            params.push(`%${search}%`, `%${search}%`);
-            countParams.push(`%${search}%`, `%${search}%`);
+            query += ' WHERE material_id LIKE ? OR specification LIKE ? OR unit LIKE ?';
+            countQuery += ' WHERE material_id LIKE ? OR specification LIKE ? OR unit LIKE ?';
+            params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+            countParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
         }
 
         query += ' ORDER BY updated_at DESC LIMIT ? OFFSET ?';
@@ -121,17 +174,19 @@ router.get('/', isAuthenticated, isSuperAdmin, async (req, res) => {
     }
 });
 
-// Export all master materials to Excel (Superadmin)
-router.get('/export', isAuthenticated, isSuperAdmin, async (req, res) => {
+// Export all master materials to Excel (Superadmin & Admin)
+router.get('/export', isAuthenticated, canAccessMasterData, async (req, res) => {
     try {
         const [rows] = await db.query(
-            'SELECT material_id, material_name, updated_at, created_at FROM material_catalog ORDER BY material_id ASC'
+            'SELECT material_id, specification, qty, unit, updated_at, created_at FROM material_catalog ORDER BY material_id ASC'
         );
 
         const exportData = rows.map((r, idx) => ({
             'No': idx + 1,
-            'Material ID': r.material_id,
-            'Material Name': r.material_name,
+            'ID': r.material_id,
+            'Specification': r.specification,
+            'Qty': r.qty ?? 1,
+            'Unit': r.unit || 'PCS',
             'Terakhir Diperbarui': r.updated_at ? new Date(r.updated_at).toLocaleString('id-ID') : '-'
         }));
 
@@ -140,9 +195,11 @@ router.get('/export', isAuthenticated, isSuperAdmin, async (req, res) => {
 
         ws['!cols'] = [
             { wch: 6 },
-            { wch: 26 },
-            { wch: 42 },
-            { wch: 24 }
+            { wch: 24 },
+            { wch: 50 },
+            { wch: 10 },
+            { wch: 10 },
+            { wch: 22 }
         ];
 
         XLSX.utils.book_append_sheet(wb, ws, 'Master Material');
@@ -164,9 +221,10 @@ router.get('/export', isAuthenticated, isSuperAdmin, async (req, res) => {
 // Get single catalog item (used by input pages)
 router.get('/:materialId', isAuthenticated, canAccessMaterials, async (req, res) => {
     try {
-        const { materialId } = req.params;
+        const rawId = String(req.params.materialId || '').trim();
+        const materialId = extractMaterialID(rawId);
         const [rows] = await db.query(
-            'SELECT material_id, material_name, created_at, updated_at FROM material_catalog WHERE material_id = ?',
+            'SELECT material_id, specification, qty, unit, specification AS material_name, created_at, updated_at FROM material_catalog WHERE LOWER(TRIM(material_id)) = LOWER(TRIM(?))',
             [materialId]
         );
 
@@ -181,8 +239,8 @@ router.get('/:materialId', isAuthenticated, canAccessMaterials, async (req, res)
     }
 });
 
-// Upload Excel file (Superadmin)
-router.post('/upload', isAuthenticated, isSuperAdmin, upload.single('file'), async (req, res) => {
+// Upload Excel file (Superadmin & Admin)
+router.post('/upload', isAuthenticated, canAccessMasterData, upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'File Excel wajib dipilih' });
@@ -205,27 +263,35 @@ router.post('/upload', isAuthenticated, isSuperAdmin, upload.single('file'), asy
         const connection = await db.getConnection();
         let inserted = 0;
         let updated = 0;
+        let unchanged = 0;
 
         try {
             await connection.beginTransaction();
 
             for (const row of rows) {
+                const specValue = row.specification || row.materialName;
+                const qtyValue = row.qty || 1;
+                const unitValue = row.unit || 'PCS';
                 const [result] = await connection.query(
                     `
-                    INSERT INTO material_catalog (material_id, material_name, created_by, updated_by)
-                    VALUES (?, ?, ?, ?)
-                    ON DUPLICATE KEY UPDATE
-                        material_name = VALUES(material_name),
+                    INSERT INTO material_catalog (material_id, specification, qty, unit, created_by, updated_by)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE 
+                        specification = VALUES(specification),
+                        qty = VALUES(qty),
+                        unit = VALUES(unit),
                         updated_by = VALUES(updated_by),
                         updated_at = CURRENT_TIMESTAMP
                     `,
-                    [row.materialId, row.materialName, req.session.userId, req.session.userId]
+                    [row.materialId, specValue, qtyValue, unitValue, req.session.userId, req.session.userId]
                 );
 
                 if (result.affectedRows === 1) {
                     inserted += 1;
                 } else if (result.affectedRows === 2) {
                     updated += 1;
+                } else {
+                    unchanged += 1;
                 }
             }
 
@@ -239,11 +305,12 @@ router.post('/upload', isAuthenticated, isSuperAdmin, upload.single('file'), asy
 
         res.json({
             success: true,
-            message: 'Upload master material berhasil',
+            message: `Upload master material berhasil (${inserted} baru ditambahkan, ${updated} diperbarui)`,
             summary: {
                 totalValidRows: rows.length,
                 inserted,
-                updated
+                updated,
+                unchanged
             }
         });
     } catch (error) {
@@ -252,22 +319,38 @@ router.post('/upload', isAuthenticated, isSuperAdmin, upload.single('file'), asy
     }
 });
 
-// Create single catalog item (Superadmin)
-router.post('/', isAuthenticated, isSuperAdmin, async (req, res) => {
+// Create single catalog item (Superadmin & Admin)
+router.post('/', isAuthenticated, canAccessMasterData, async (req, res) => {
     try {
-        const materialId = String(req.body.materialId || '').trim();
-        const materialName = String(req.body.materialName || '').trim();
+        const rawMaterialId = String(req.body.materialId || '').trim();
+        const materialId = extractMaterialID(rawMaterialId);
+        const specification = String(req.body.specification || req.body.materialName || '').trim();
+        const parsedQty = parseInt(req.body.qty, 10);
+        const qty = (!isNaN(parsedQty) && parsedQty > 0) ? parsedQty : 1;
+        const unit = String(req.body.unit || 'PCS').trim().toUpperCase() || 'PCS';
 
-        if (!materialId || !materialName) {
-            return res.status(400).json({ error: 'Material ID dan material name wajib diisi' });
+        if (!materialId || !specification) {
+            return res.status(400).json({ error: 'ID dan Specification wajib diisi' });
+        }
+
+        // Cek duplikasi ID: jika ID sudah ada, tolak meskipun spesifikasi berbeda
+        const [existing] = await db.query(
+            'SELECT material_id, specification FROM material_catalog WHERE LOWER(TRIM(material_id)) = LOWER(TRIM(?))',
+            [materialId]
+        );
+
+        if (existing.length > 0) {
+            return res.status(400).json({
+                error: `ID "${materialId}" sudah terdaftar di data master dengan spesifikasi "${existing[0].specification}". Tidak dapat menambahkan ID yang sama!`
+            });
         }
 
         await db.query(
             `
-            INSERT INTO material_catalog (material_id, material_name, created_by, updated_by)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO material_catalog (material_id, specification, qty, unit, created_by, updated_by)
+            VALUES (?, ?, ?, ?, ?, ?)
             `,
-            [materialId, materialName, req.session.userId, req.session.userId]
+            [materialId, specification, qty, unit, req.session.userId, req.session.userId]
         );
 
         res.json({ success: true, message: 'Master material berhasil ditambahkan' });
@@ -280,24 +363,42 @@ router.post('/', isAuthenticated, isSuperAdmin, async (req, res) => {
     }
 });
 
-// Update catalog item (Superadmin)
-router.put('/:materialId', isAuthenticated, isSuperAdmin, async (req, res) => {
+// Update catalog item (Superadmin & Admin)
+router.put('/:materialId', isAuthenticated, canAccessMasterData, async (req, res) => {
     try {
         const oldId = String(req.params.materialId || '').trim();
-        const newId = String(req.body.materialId || '').trim();
-        const materialName = String(req.body.materialName || '').trim();
+        const rawNewId = String(req.body.materialId || '').trim();
+        const newId = extractMaterialID(rawNewId);
+        const specification = String(req.body.specification || req.body.materialName || '').trim();
+        const parsedQty = parseInt(req.body.qty, 10);
+        const qty = (!isNaN(parsedQty) && parsedQty > 0) ? parsedQty : 1;
+        const unit = String(req.body.unit || 'PCS').trim().toUpperCase() || 'PCS';
 
-        if (!oldId || !newId || !materialName) {
-            return res.status(400).json({ error: 'Material ID dan material name wajib diisi' });
+        if (!oldId || !newId || !specification) {
+            return res.status(400).json({ error: 'ID dan Specification wajib diisi' });
+        }
+
+        // Cek jika ID diubah ke ID lain yang sudah ada di database
+        if (newId.toLowerCase() !== oldId.toLowerCase()) {
+            const [existing] = await db.query(
+                'SELECT material_id, specification FROM material_catalog WHERE LOWER(TRIM(material_id)) = LOWER(TRIM(?)) AND LOWER(TRIM(material_id)) != LOWER(TRIM(?))',
+                [newId, oldId]
+            );
+
+            if (existing.length > 0) {
+                return res.status(400).json({
+                    error: `ID "${newId}" sudah digunakan oleh material "${existing[0].specification}". Tidak dapat menduplikasi ID!`
+                });
+            }
         }
 
         const [result] = await db.query(
             `
             UPDATE material_catalog
-            SET material_id = ?, material_name = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+            SET material_id = ?, specification = ?, qty = ?, unit = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
             WHERE material_id = ?
             `,
-            [newId, materialName, req.session.userId, oldId]
+            [newId, specification, qty, unit, req.session.userId, oldId]
         );
 
         if (result.affectedRows === 0) {
@@ -314,8 +415,8 @@ router.put('/:materialId', isAuthenticated, isSuperAdmin, async (req, res) => {
     }
 });
 
-// Delete catalog item (Superadmin)
-router.delete('/:materialId', isAuthenticated, isSuperAdmin, async (req, res) => {
+// Delete catalog item (Superadmin & Admin)
+router.delete('/:materialId', isAuthenticated, canAccessMasterData, async (req, res) => {
     try {
         const { materialId } = req.params;
         const [result] = await db.query('DELETE FROM material_catalog WHERE material_id = ?', [materialId]);

@@ -11,14 +11,32 @@ let lastScanTime = null;
 let lastScanError = null;
 let isScanning = false;
 
-// 5 SMT Machines Default Configuration
-// A1: Hanwha, A2: Samsung, A3: Samsung, B1: Samsung, B2: Samsung
+// 5 SMT Mounting Machines Definition:
+// Line A: A1 (Hanwha), A2 (Samsung), A3 (Samsung)
+// Line B: B1 (Samsung), B2 (Samsung)
+const SMT_MACHINES = [
+    { id: 'A1', line: 'Line A', brand: 'Hanwha', name: 'Line A1', label: 'Line A - Mesin A1 (Hanwha)', folder: 'a1', color: '#ea580c' },
+    { id: 'A2', line: 'Line A', brand: 'Samsung', name: 'Line A2', label: 'Line A - Mesin A2 (Samsung)', folder: 'a2', color: '#2563eb' },
+    { id: 'A3', line: 'Line A', brand: 'Samsung', name: 'Line A3', label: 'Line A - Mesin A3 (Samsung)', folder: 'a3', color: '#0284c7' },
+    { id: 'B1', line: 'Line B', brand: 'Samsung', name: 'Line B1', label: 'Line B - Mesin B1 (Samsung)', folder: 'b1', color: '#4f46e5' },
+    { id: 'B2', line: 'Line B', brand: 'Samsung', name: 'Line B2', label: 'Line B - Mesin B2 (Samsung)', folder: 'b2', color: '#7c3aed' }
+];
+
+function getMachineMeta(machineId) {
+    const id = String(machineId || '').toUpperCase().trim();
+    const found = SMT_MACHINES.find(m => m.id === id);
+    if (found) return found;
+    if (id.startsWith('A')) return { id, line: 'Line A', brand: id === 'A1' ? 'Hanwha' : 'Samsung', name: `Line ${id}`, label: `Line A - Mesin ${id}`, folder: id.toLowerCase(), color: '#2563eb' };
+    if (id.startsWith('B')) return { id, line: 'Line B', brand: 'Samsung', name: `Line ${id}`, label: `Line B - Mesin ${id}`, folder: id.toLowerCase(), color: '#4f46e5' };
+    return { id: id || 'UNASSIGNED', line: 'Antrian / Belum Masuk Mesin', brand: '-', name: id || 'Antrian Mesin', label: id || 'Belum Ditugaskan', folder: '-', color: '#64748b' };
+}
+
 const DEFAULT_MACHINES = [
     {
         id: 'A1',
         name: 'Line A1',
         brand: 'Hanwha',
-        ip: '',
+        ip: '192.168.91.165',
         shareFolder: 'Pd Info',
         path: 'C:\\Users\\Rama-Notebook\\Documents\\Adid\\Pd Info\\a1',
         enabled: true
@@ -29,7 +47,7 @@ const DEFAULT_MACHINES = [
         brand: 'Samsung',
         ip: '192.168.1.102',
         shareFolder: 'Pd Info',
-        path: '',
+        path: 'C:\\Users\\Rama-Notebook\\Documents\\Adid\\Pd Info\\a2',
         enabled: true
     },
     {
@@ -38,14 +56,14 @@ const DEFAULT_MACHINES = [
         brand: 'Samsung',
         ip: '192.168.1.103',
         shareFolder: 'Pd Info',
-        path: '',
+        path: 'C:\\Users\\Rama-Notebook\\Documents\\Adid\\Pd Info\\a3',
         enabled: true
     },
     {
         id: 'B1',
         name: 'Line B1',
         brand: 'Samsung',
-        ip: '',
+        ip: '192.168.91.165',
         shareFolder: 'Pd Info',
         path: 'C:\\Users\\Rama-Notebook\\Documents\\Adid\\Pd Info\\b1',
         enabled: true
@@ -56,7 +74,7 @@ const DEFAULT_MACHINES = [
         brand: 'Samsung',
         ip: '192.168.1.105',
         shareFolder: 'Pd Info',
-        path: '',
+        path: 'C:\\Users\\Rama-Notebook\\Documents\\Adid\\Pd Info\\b2',
         enabled: true
     }
 ];
@@ -64,7 +82,16 @@ const DEFAULT_MACHINES = [
 function resolveMachinePath(m) {
     if (!m) return '';
     const custom = (m.path || '').trim();
+    if (custom && fs.existsSync(custom)) return custom;
+
+    const basePdInfo = 'C:\\Users\\Rama-Notebook\\Documents\\Adid\\Pd Info';
+    const localPdInfo = path.join(basePdInfo, String(m.id || '').toLowerCase());
+    if (fs.existsSync(localPdInfo)) {
+        return localPdInfo;
+    }
+
     if (custom) return custom;
+
     const ip = (m.ip || '').trim();
     const folder = (m.shareFolder || 'Pd Info').trim().replace(/^[\\\/]+/, '');
     if (ip) {
@@ -201,22 +228,61 @@ function extractMeterType(fileName) {
 }
 
 /**
- * Extract Machine Line / Side (e.g. A1, B1, etc.)
+ * Extract Machine Line / Side (e.g. A1, A2, A3, B1, B2)
  */
 function extractMachineLine(filePath, fileName) {
     // Try from folder name (e.g. ...\Pd Info\a1\...)
     const parentDir = path.basename(path.dirname(filePath)).toUpperCase();
-    if (['A1', 'B1', 'A2', 'B2', 'LINE1', 'LINE2'].includes(parentDir)) {
+    if (['A1', 'A2', 'A3', 'B1', 'B2', 'LINE1', 'LINE2'].includes(parentDir)) {
         return parentDir;
     }
 
-    // Try from filename pattern: -A1- or -B1-
-    const match = fileName.match(/-([A-Za-z0-9]+)-/);
+    // Try from filename pattern: -A1-, -A2-, -A3-, -B1-, -B2-
+    const match = fileName.match(/-([AB][1-3])-/i);
     if (match && match[1]) {
         return match[1].toUpperCase();
     }
 
+    const genericMatch = fileName.match(/-([A-Za-z0-9]+)-/);
+    if (genericMatch && genericMatch[1]) {
+        return genericMatch[1].toUpperCase();
+    }
+
     return parentDir || 'SMT-MACHINE';
+}
+
+/**
+ * Extract 5-digit RID (Roll ID) from barcode
+ * e.g. S0086*********1051802606110002504 -> 02504
+ *      S0086*********102621260312000022 -> 00022
+ *      S0086********10458425111200318   -> 00318
+ */
+function extractRID(barcode) {
+    if (!barcode || typeof barcode !== 'string') return null;
+    const trimmed = barcode.trim();
+    if (!trimmed) return null;
+
+    if (trimmed.includes('&')) {
+        const parts = trimmed.split('&');
+        if (parts.length >= 3 && parts[2].trim()) {
+            const p3 = parts[2].trim();
+            const matchP3 = p3.match(/(\d{5})$/);
+            return matchP3 ? matchP3[1] : (p3.length >= 5 ? p3.slice(-5) : p3);
+        }
+    }
+
+    const tokens = trimmed.split(/\s+/);
+    const lastToken = tokens[tokens.length - 1];
+    const match = lastToken.match(/(\d{5})$/);
+    if (match) return match[1];
+
+    const digitMatch = lastToken.match(/\d+/g);
+    if (digitMatch && digitMatch.length > 0) {
+        const lastGroup = digitMatch[digitMatch.length - 1];
+        if (lastGroup.length >= 5) return lastGroup.slice(-5);
+    }
+
+    return null;
 }
 
 /**
@@ -257,6 +323,12 @@ function parseSamsungHanwhaLog(filePath, content) {
 
             // Check if there is an exact reel barcode scanned on this feeder slot
             let reelMaterialId = null;
+            let reelRid = null;
+
+            if (barcodePart) {
+                reelRid = extractRID(barcodePart);
+            }
+
             if (barcodePart.startsWith('Z01')) {
                 const bTokens = barcodePart.split(/\s+/);
                 if (bTokens.length > 5 && bTokens[5] !== 'null') {
@@ -268,19 +340,21 @@ function parseSamsungHanwhaLog(filePath, content) {
             }
 
             const effectiveMaterialId = reelMaterialId || materialId;
+            const mapKey = reelRid ? `${effectiveMaterialId}::${reelRid}` : effectiveMaterialId;
 
             // Only consider lines with Material ID and positive consumption
             if (effectiveMaterialId && (picked > 0 || mounted > 0)) {
-                if (!materialsMap.has(effectiveMaterialId)) {
-                    materialsMap.set(effectiveMaterialId, {
+                if (!materialsMap.has(mapKey)) {
+                    materialsMap.set(mapKey, {
                         materialId: effectiveMaterialId,
+                        rid: reelRid || null,
                         rawSlotPart: materialId,
                         picked: 0,
                         mounted: 0,
                         slots: []
                     });
                 }
-                const entry = materialsMap.get(effectiveMaterialId);
+                const entry = materialsMap.get(mapKey);
                 entry.picked += picked;
                 entry.mounted += mounted;
                 if (!entry.slots.includes(slot)) {
@@ -369,12 +443,22 @@ async function processSingleLogFile(fileInfo, options = {}) {
         if (consumedQty <= 0) continue;
 
         // 1. Find corresponding active transaction in Output Stok
-        const [txRows] = await db.query(
-            'SELECT * FROM transactions WHERE (material_id = ? OR material_id LIKE CONCAT(?, "-%") OR ? LIKE CONCAT(material_id, "-%")) AND transaction_type = "OUTPUT" ORDER BY created_at DESC LIMIT 1',
-            [item.materialId, item.materialId, item.materialId]
-        );
+        let tx = null;
+        if (item.rid) {
+            const [txRowsWithRid] = await db.query(
+                'SELECT * FROM transactions WHERE (material_id = ? OR material_id LIKE CONCAT(?, "-%") OR ? LIKE CONCAT(material_id, "-%")) AND rid = ? AND transaction_type = "OUTPUT" ORDER BY created_at DESC LIMIT 1',
+                [item.materialId, item.materialId, item.materialId, item.rid]
+            );
+            if (txRowsWithRid.length > 0) tx = txRowsWithRid[0];
+        }
 
-        let tx = txRows.length > 0 ? txRows[0] : null;
+        if (!tx) {
+            const [txRows] = await db.query(
+                'SELECT * FROM transactions WHERE (material_id = ? OR material_id LIKE CONCAT(?, "-%") OR ? LIKE CONCAT(material_id, "-%")) AND transaction_type = "OUTPUT" ORDER BY created_at DESC LIMIT 1',
+                [item.materialId, item.materialId, item.materialId]
+            );
+            if (txRows.length > 0) tx = txRows[0];
+        }
 
         // Check remaining
         let allowedQty = consumedQty;
@@ -393,28 +477,45 @@ async function processSingleLogFile(fileInfo, options = {}) {
             allowedQty = Math.min(consumedQty, remainingInMachine);
         }
 
-        // 2. Insert into machine_meter_usage
-        const notes = `Auto-log: ${parsed.fileName} (Slot ${item.slots.slice(0, 3).join(',')})`;
+        // 2. Insert into machine_meter_usage with explicit machine_id & line_id
+        const effectiveRid = item.rid || (tx ? tx.rid : null);
+        const notes = `Auto-log: ${parsed.fileName} (Slot ${item.slots.slice(0, 3).join(',')})${effectiveRid ? ` [RID: ${effectiveRid}]` : ''}`;
+        const targetLineId = String(lineId || '').toUpperCase().startsWith('A') ? 'Line A' : 'Line B';
 
         await db.query(`
             INSERT INTO machine_meter_usage (
                 transaction_id,
                 material_id,
+                rid,
                 material_name,
                 meter_type,
                 used_quantity,
                 source_pc,
+                machine_id,
+                line_id,
                 notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             tx ? tx.id : null,
             item.materialId,
+            effectiveRid,
             tx ? tx.material_name : `Part ${item.materialId}`,
             parsed.meterType,
             allowedQty,
             machineSource,
+            lineId,
+            targetLineId,
             notes
         ]);
+
+        // Auto-assign transaction machine_id if not yet assigned
+        if (tx && (!tx.machine_id || tx.machine_id === 'UNASSIGNED')) {
+            try {
+                await db.query('UPDATE transactions SET machine_id = ? WHERE id = ?', [lineId, tx.id]);
+            } catch (errTx) {
+                // Silently ignore if column update fails
+            }
+        }
 
         totalPcsConsumed += allowedQty;
         materialsDetectedCount++;
@@ -660,6 +761,60 @@ async function getWatcherStatus() {
     };
 }
 
+let cachedFeederMap = null;
+let lastFeederMapScan = 0;
+
+/**
+ * Scans directories to map which material belongs to which machine feeder list
+ */
+function getFeederMachineMapping() {
+    const now = Date.now();
+    if (cachedFeederMap && (now - lastFeederMapScan) < 30000) {
+        return cachedFeederMap;
+    }
+
+    const map = new Map();
+    const config = loadWatcherConfig();
+    const machines = (config && config.machines) || DEFAULT_MACHINES;
+
+    for (const m of machines) {
+        const dirPath = resolveMachinePath(m);
+        if (!dirPath || !fs.existsSync(dirPath)) continue;
+
+        try {
+            const files = fs.readdirSync(dirPath).filter(f => f.endsWith('.log'));
+
+            for (const f of files) {
+                try {
+                    const fullP = path.join(dirPath, f);
+                    const content = fs.readFileSync(fullP, 'utf8');
+                    const lines = content.split(/\r?\n/);
+                    let inFeeder = false;
+                    for (const l of lines) {
+                        const tr = l.trim();
+                        if (tr.startsWith('[') && tr.endsWith(']')) {
+                            inFeeder = tr.toLowerCase().includes('feeder');
+                            continue;
+                        }
+                        if (!inFeeder) continue;
+                        const parts = tr.split('\t')[0].split(',');
+                        if (parts.length >= 3) {
+                            const matId = parts[2].trim();
+                            if (matId && !map.has(matId)) {
+                                map.set(matId, m.id);
+                            }
+                        }
+                    }
+                } catch (e) {}
+            }
+        } catch (e) {}
+    }
+
+    cachedFeederMap = map;
+    lastFeederMapScan = now;
+    return map;
+}
+
 module.exports = {
     loadWatcherConfig,
     saveWatcherConfig,
@@ -673,5 +828,8 @@ module.exports = {
     getWatcherStatus,
     checkPathAccessible,
     resolveMachinePath,
-    DEFAULT_MACHINES
+    DEFAULT_MACHINES,
+    SMT_MACHINES,
+    getMachineMeta,
+    getFeederMachineMapping
 };

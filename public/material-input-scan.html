@@ -1,169 +1,272 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="h-full bg-slate-50">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Material Input (Scan) - SMT Material Control</title>
     <link rel="icon" href="/img/SMT.png?v=5" type="image/png">
+
+    <!-- Inter Font (Offline) -->
+    <link rel="stylesheet" href="/libs/inter-font.css">
+
+    <!-- Tailwind CSS (Offline) -->
+    <script src="/libs/tailwind.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            DEFAULT: "#091540",
+                            hover: "#142563",
+                            active: "#060e2a",
+                            light: "#f0f3fa",
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Lucide Icons (Offline) -->
+    <script src="/libs/lucide.min.js"></script>
+
+    <!-- Global Styles & Toast -->
     <link rel="stylesheet" href="/css/styles.css">
 </head>
 
-<body>
-    <div class="dashboard">
-        <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                    <img src="/img/SMT.png" alt="SMT Logo" style="height: 40px; width: auto;">
-                    <div style="text-align: center;">
-                        <h2 style="font-size: 16px; margin: 0; font-weight: 700;">SMT Material</h2>
-                        <p style="font-size: 11px; margin: 0; opacity: 0.8;">Control System</p>
-                    </div>
+<body class="h-full bg-slate-50 text-slate-900 antialiased flex flex-col">
+
+    <div class="flex-1 flex overflow-hidden">
+        <!-- Sidebar Navigation (Shadcn Style - Midnight Navy) -->
+        <aside id="sidebar" class="w-64 border-r border-white/10 bg-[#091540] text-white flex flex-col shrink-0 transition-all duration-300 z-40 hidden md:flex">
+            <!-- Sidebar Header -->
+            <div class="h-16 border-b border-white/10 flex items-center px-6 gap-3">
+                <img src="/img/SMT.png" alt="SMT Logo" class="h-8 w-auto object-contain">
+                <div>
+                    <h2 class="text-sm font-bold tracking-tight text-white leading-tight">SMT Material</h2>
+                    <p class="text-[11px] text-slate-400 font-medium leading-none">Control System</p>
                 </div>
             </div>
-            <nav class="nav-menu">
-                <a href="/dashboard.html" class="nav-item">
-                    <span class="nav-icon">&#128202;</span>
+
+            <!-- Navigation Links -->
+            <div class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+                <div class="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Menu Utama</div>
+
+                <!-- Dashboard -->
+                <a href="/dashboard.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4 text-slate-400"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="/material-input-scan.html" class="nav-item active">
-                    <span class="nav-icon">&#128229;</span>
-                    <span>Material Input</span>
+
+                <!-- Material Input Scan (Active) -->
+                <a href="/material-input-scan.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg bg-[#142563] text-white transition shadow-sm">
+                    <i data-lucide="scan-barcode" class="w-4 h-4 text-white"></i>
+                    <span>Material Input (Scan)</span>
                 </a>
-                <a href="/material-input.html" class="nav-item">
-                    <span class="nav-icon">&#9997;&#65039;</span>
+
+                <!-- Manual Input -->
+                <a href="/material-input.html" id="inputLink" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                    <i data-lucide="pen-tool" class="w-4 h-4 text-slate-400"></i>
                     <span>Manual Material Input</span>
                 </a>
-                <div class="nav-dropdown" id="navOutputDropdown">
-                    <div class="nav-item nav-dropdown-toggle" id="navOutputToggle" onclick="toggleNavDropdown('navOutputDropdown')">
-                        <div class="nav-dropdown-label">
-                            <span class="nav-icon">&#128228;</span>
-                            <span>Material Output</span>
-                        </div>
-                        <span class="nav-dropdown-arrow">&#9662;</span>
-                    </div>
-                    <div class="nav-submenu">
-                        <a href="/material-output.html" class="nav-subitem" id="navSubOutputStok">
-                            <span class="nav-subitem-icon">&#128230;</span>
-                            <span>Output Stok</span>
-                        </a>
-                        <a href="/material-output-machine.html" class="nav-subitem" id="navSubOutputMesin">
-                            <span class="nav-subitem-icon">&#9881;&#65039;</span>
-                            <span>Output Mesin</span>
-                        </a>
-                    </div>
-                </div>
-                <a href="/records.html" class="nav-item">
-                    <span class="nav-icon">&#128203;</span>
-                    <span>Records</span>
-                </a>
-                <a href="/master-materials.html" class="nav-item superadmin-nav-item" id="navMasterMaterials" style="display: none;">
-                    <span class="nav-icon">&#128196;</span>
-                    <span>Master Material</span>
-                </a>
-            </nav>
-        </aside>
 
-        <!-- Main Content -->
-        <main class="main-content" id="mainContent">
-            <div class="top-bar">
-                <button class="toggle-btn" onclick="toggleSidebar()">&#9776;</button>
-                <div class="user-dropdown">
-                    <div class="user-info" onclick="toggleUserDropdown()">
-                        <span id="welcomeText">Material Input (QR Scan)</span>
-                        <span class="user-role" id="userRole">User</span>
-                        <span style="font-size: 10px;">&#9660;</span>
-                    </div>
-                    <div class="dropdown-content" id="userDropdownContent">
-                        <a href="/profile.html">&#128100; My Profile</a>
-                        <a href="#" onclick="logout()">&#128682; Logout</a>
+                <!-- Output Dropdown -->
+                <div class="pt-2">
+                    <div class="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Material Output</div>
+                    <a href="/material-output.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                        <i data-lucide="package-minus" class="w-4 h-4 text-slate-400"></i>
+                        <span>Output Stok</span>
+                    </a>
+                    <a href="/material-output-machine.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                        <i data-lucide="cpu" class="w-4 h-4 text-slate-400"></i>
+                        <span>Output Mesin</span>
+                    </a>
+                </div>
+
+                <div class="pt-2">
+                    <div class="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Laporan & Pengaturan</div>
+                    <a href="/records.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                        <i data-lucide="clipboard-list" class="w-4 h-4 text-slate-400"></i>
+                        <span>Records</span>
+                    </a>
+                    <!-- Master Data Dropdown in Sidebar -->
+                    <div>
+                        <button type="button" onclick="toggleSidebarMasterDropdown()" id="navMasterToggle" class="w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition cursor-pointer">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="file-spreadsheet" class="w-4 h-4 text-slate-400"></i>
+                                <span>Master Data</span>
+                            </div>
+                            <i data-lucide="chevron-down" id="navMasterArrow" class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200"></i>
+                        </button>
+                        <div id="navMasterSubmenu" class="hidden pl-4 pr-1 py-1 space-y-1 mt-1">
+                            <a href="/master-materials.html" id="navSubMaster" class="flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                                <i data-lucide="box" class="w-3.5 h-3.5 text-slate-400"></i>
+                                <span>Master</span>
+                            </a>
+                            <a href="/master-materials.html?category=meter_quantity" id="navSubMeterQuantity" class="flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                                <i data-lucide="gauge" class="w-3.5 h-3.5 text-slate-400"></i>
+                                <span>Meter Komponen Quantity</span>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="content-area">
-                <h1 style="margin-bottom: 24px; font-size: 28px;">&#128229; Material Input via QR Scan</h1>
+            <!-- Sidebar Footer -->
+            <div class="p-3 border-t border-white/10 bg-[#060e2a]/50 flex items-center justify-between text-xs text-slate-400">
+                <span class="text-[11px] font-medium text-slate-400">v1.0.0 &bull; SMT Control</span>
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    Online
+                </span>
+            </div>
+        </aside>
 
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">Scan QR Code</h2>
+        <!-- Main Content Area -->
+        <div id="mainContent" class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+            <!-- Top Navbar -->
+            <header class="h-16 border-b border-slate-200 bg-white px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 shrink-0">
+                <div class="flex items-center gap-3">
+                    <button id="toggleBtn" onclick="toggleSidebar()" class="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition" title="Toggle Sidebar">
+                        <i data-lucide="panel-left" class="w-4 h-4"></i>
+                    </button>
+                    <div>
+                        <h1 class="text-base sm:text-lg font-semibold tracking-tight text-slate-900">Material Input (Scan)</h1>
                     </div>
+                </div>
 
-                    <form id="materialInputForm">
-                        <!-- Combo Row: Multiplier + QR Scanner -->
-                        <div class="form-row"
-                            style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; margin-bottom: 24px; display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap;">
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <button id="userMenuBtn" onclick="toggleUserDropdown()" class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition text-left">
+                            <div class="w-8 h-8 rounded-full bg-[#091540] text-white flex items-center justify-center text-xs font-bold" id="userAvatar">
+                                U
+                            </div>
+                            <div class="hidden sm:block text-xs">
+                                <div class="font-semibold text-slate-900 leading-tight" id="welcomeText">User</div>
+                                <div class="text-[10px] font-medium text-slate-500 uppercase tracking-wide" id="userRole">User</div>
+                            </div>
+                            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+                        </button>
+                        <div id="userDropdownContent" class="hidden absolute right-0 mt-2 w-52 rounded-xl border border-slate-200 bg-white shadow-lg p-1 z-50">
+                            <div class="px-3 py-2 border-b border-slate-100 text-xs">
+                                <p class="font-medium text-slate-900" id="dropdownUserName">User</p>
+                                <p class="text-[11px] text-slate-500" id="dropdownUserRole">Role: -</p>
+                            </div>
+                            <a href="/profile.html" class="flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg text-slate-700 hover:bg-slate-100 transition">
+                                <i data-lucide="user" class="w-4 h-4 text-slate-500"></i>
+                                <span>Profil Saya</span>
+                            </a>
+                            <button onclick="logout()" class="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg text-red-600 hover:bg-red-50 transition text-left">
+                                <i data-lucide="log-out" class="w-4 h-4 text-red-500"></i>
+                                <span>Keluar</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
 
-                            <!-- Multiplier Input (Small) -->
-                            <div class="form-group" style="margin: 0; flex: 0 0 120px;">
-                                <label for="multiplierInput"
-                                    style="color: white; font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">&#128230; Rolls</label>
-                                <input type="number" id="multiplierInput" class="form-input" value="1" min="1" max="999"
-                                    style="text-align: center; font-size: 20px; font-weight: bold; color: var(--primary-color); border: 2px solid #fbbf24; padding: 10px; height: 50px;">
+            <!-- Main Body -->
+            <main class="p-4 sm:p-6 space-y-6 flex-1 max-w-6xl">
+                <!-- Page Title -->
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Material Input via QR Scan</h1>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-1">Pindai barcode atau QR code roll komponen SMT untuk registrasi stok masuk secara instan.</p>
+                </div>
+
+                <!-- Input Card -->
+                <div class="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-6">
+                    <form id="materialInputForm" class="space-y-6">
+                        <!-- Combo Banner: Multiplier + QR Scanner -->
+                        <div class="bg-gradient-to-br from-[#091540] to-[#142563] text-white p-4 sm:p-5 rounded-xl shadow-sm space-y-4">
+                            <div class="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+                                <!-- Multiplier Input (Superadmin only) -->
+                                <div class="w-full sm:w-28 shrink-0" id="rollsGroup">
+                                    <label for="multiplierInput" class="block text-xs font-semibold text-slate-200 mb-1.5 flex items-center gap-1.5">
+                                        <i data-lucide="layers" class="w-3.5 h-3.5 text-amber-400"></i>
+                                        <span>Rolls</span>
+                                    </label>
+                                    <input type="number" id="multiplierInput" value="1" min="1" max="999"
+                                        class="w-full text-center text-lg font-bold text-[#091540] bg-white rounded-lg border-2 border-amber-400 h-12 shadow-inner focus:outline-none focus:ring-2 focus:ring-amber-400">
+                                </div>
+
+                                <!-- QR Scanner Input -->
+                                <div class="flex-1">
+                                    <label for="qrScanInput" class="block text-sm font-semibold text-white mb-1.5 flex items-center gap-2">
+                                        <i data-lucide="scan" class="w-4 h-4 text-amber-400"></i>
+                                        <span>Scan QR Code Material</span>
+                                    </label>
+                                    <div class="relative">
+                                        <i data-lucide="search" class="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                        <input type="text" id="qrScanInput"
+                                            class="w-full pl-11 pr-4 h-12 text-sm sm:text-base font-medium rounded-lg border-2 border-amber-400 bg-white text-slate-900 placeholder:text-slate-400 shadow-inner focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                            placeholder="Fokus di sini lalu scan barcode / QR code..." autofocus>
+                                    </div>
+                                </div>
                             </div>
 
-                            <!-- QR Scanner Input (Large) -->
-                            <div class="form-group" style="margin: 0; flex: 1;">
-                                <label for="qrScanInput"
-                                    style="color: white; font-weight: 600; font-size: 16px; display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">&#128247; Scan QR Code Material</label>
-                                <input type="text" id="qrScanInput" class="form-input scanner-input"
-                                    placeholder="&#128269; Fokus di sini lalu scan..."
-                                    style="background: white; border: 3px solid #fbbf24; font-size: 16px; padding: 10px; height: 50px;"
-                                    autofocus>
+                            <div id="rollsTips" class="flex items-center gap-2 text-xs text-slate-300 pt-1 border-t border-white/10">
+                                <i data-lucide="info" class="w-3.5 h-3.5 text-amber-400 shrink-0"></i>
+                                <span>Tips: Isi jumlah roll dulu (jika &gt; 1) sebelum scan QR. Hanya <strong>Superadmin</strong> yang dapat mengubah jumlah roll.</span>
                             </div>
                         </div>
 
-                        <div
-                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <small style="color: var(--light-text); font-size: 13px;">&#128161; Tips: Isi jumlah roll dulu (jika > 1), lalu scan QR.</small>
-                        </div>
-
-                        <!-- Auto-filled Fields (Read-Only Display) -->
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="materialId">Material ID *</label>
-                                <input type="text" id="materialId" class="form-input"
-                                    placeholder="Otomatis terisi dari scan QR" required readonly
-                                    style="background: #f9fafb;">
+                        <!-- Auto-filled Fields Grid -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label for="materialId" class="block text-xs font-semibold text-slate-700 mb-1.5">Material ID *</label>
+                                <input type="text" id="materialId"
+                                    class="w-full px-3.5 py-2.5 text-sm font-mono font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-800 placeholder:text-slate-400 cursor-not-allowed"
+                                    placeholder="Otomatis terisi dari scan QR" required readonly>
                             </div>
 
-                            <div class="form-group">
-                                <label for="materialQuantity">Quantity (pcs) *</label>
-                                <input type="number" id="materialQuantity" class="form-input"
-                                    placeholder="Otomatis terisi dari scan QR" min="1" required readonly
-                                    style="background: #f9fafb;">
+                            <div>
+                                <label for="materialRid" class="block text-xs font-semibold text-slate-700 mb-1.5">RID (Roll ID)</label>
+                                <input type="text" id="materialRid"
+                                    class="w-full px-3.5 py-2.5 text-sm font-mono font-bold rounded-lg border border-slate-200 bg-slate-50 text-blue-700 placeholder:text-slate-400 cursor-not-allowed"
+                                    placeholder="5 digit belakang" readonly>
+                            </div>
+
+                            <div>
+                                <label for="materialQuantity" class="block text-xs font-semibold text-slate-700 mb-1.5">Quantity (pcs) *</label>
+                                <input type="number" id="materialQuantity"
+                                    class="w-full px-3.5 py-2.5 text-sm font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-800 placeholder:text-slate-400 cursor-not-allowed"
+                                    placeholder="Otomatis terisi dari scan QR" min="1" required readonly>
                             </div>
                         </div>
 
                         <!-- Session History Table -->
-                        <div style="margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
-                            <div
-                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                                <h3 style="font-size: 16px; font-weight: 600; color: var(--text-color);">&#128338; Sesi Input Saat Ini</h3>
-                                <button type="button" class="btn btn-danger btn-sm" onclick="clearInputHistory()"
-                                    id="clearHistoryBtn" style="visibility: hidden;">&#128465;&#65039; Reset History</button>
+                        <div class="pt-4 border-t border-slate-100 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="history" class="w-4 h-4 text-slate-500"></i>
+                                    <h3 class="text-sm font-semibold text-slate-800">Sesi Input Saat Ini</h3>
+                                </div>
+                                <button type="button" onclick="clearInputHistory()" id="clearHistoryBtn"
+                                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg text-red-600 hover:bg-red-50 transition"
+                                    style="visibility: hidden;">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                    <span>Reset History</span>
+                                </button>
                             </div>
 
-                            <div class="table-container" style="max-height: 200px; overflow-y: auto;">
-                                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                                    <thead style="background: #f9fafb; position: sticky; top: 0;">
+                            <div class="rounded-lg border border-slate-200 overflow-hidden">
+                                <table class="w-full text-xs text-left">
+                                    <thead class="bg-slate-50/75 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
                                         <tr>
-                                            <th
-                                                style="padding: 8px; text-align: left; border-bottom: 2px solid #e5e7eb;">
-                                                Material ID</th>
-                                            <th
-                                                style="padding: 8px; text-align: right; border-bottom: 2px solid #e5e7eb;">
-                                                Qty Masuk</th>
-                                            <th
-                                                style="padding: 8px; text-align: center; border-bottom: 2px solid #e5e7eb;">
-                                                Waktu</th>
+                                            <th class="py-2.5 px-4">Material ID</th>
+                                            <th class="py-2.5 px-4 text-center">RID</th>
+                                            <th class="py-2.5 px-4 text-right">Qty Masuk</th>
+                                            <th class="py-2.5 px-4 text-center">Waktu</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="historyTableBody">
+                                    <tbody id="historyTableBody" class="divide-y divide-slate-100 bg-white">
                                         <tr>
-                                            <td colspan="3"
-                                                style="text-align: center; padding: 15px; color: var(--light-text); font-style: italic;">
+                                            <td colspan="4" class="text-center py-6 text-slate-400 italic">
                                                 Belum ada data input di sesi ini
                                             </td>
                                         </tr>
@@ -172,49 +275,77 @@
                             </div>
                         </div>
 
+                        <!-- Alerts -->
                         <div id="successMessage" class="alert alert-success" style="display: none;"></div>
                         <div id="errorMessage" class="alert alert-error" style="display: none;"></div>
 
-                        <div style="display: flex; gap: 12px; margin-top: 24px;">
-                            <button type="submit" class="btn btn-primary" id="submitBtn">&#9989; Input Material</button>
-                            <button type="button" class="btn btn-secondary" onclick="resetForm()">&#128260; Reset Form</button>
+                        <!-- Actions -->
+                        <div class="flex items-center gap-3 pt-2">
+                            <button type="submit" id="submitBtn"
+                                class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#091540] hover:bg-[#142563] text-white text-sm font-medium transition shadow-sm cursor-pointer">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                                <span>Input Material</span>
+                            </button>
+                            <button type="button" onclick="resetForm()"
+                                class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium transition cursor-pointer">
+                                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                                <span>Reset Form</span>
+                            </button>
                         </div>
                     </form>
                 </div>
 
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">Panduan</h2>
+                <!-- Guidance Card -->
+                <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="help-circle" class="w-4 h-4 text-slate-500"></i>
+                        <h2 class="text-sm font-semibold text-slate-900">Panduan Penggunaan</h2>
                     </div>
-                    <ul style="line-height: 1.8; color: var(--light-text);">
-                        <li>Fokus cursor di field "Scan QR Code Material"</li>
-                        <li>Scan QR code menggunakan barcode scanner</li>
-                        <li>Nama material diambil otomatis dari master data</li>
-                        <li>Material ID dan Quantity akan otomatis terisi</li>
-                        <li>Klik "Input Material" untuk menyimpan</li>
-                        <li>Jika scan gagal, modal error akan muncul - klik OK lalu coba lagi</li>
-                        <li>Untuk melengkapi nama material, upload master data material di menu "My Profile" (superadmin)</li>
+                    <ul class="list-disc list-inside text-xs sm:text-sm text-slate-500 space-y-1.5 leading-relaxed">
+                        <li>Fokuskan kursor di kolom "Scan QR Code Material"</li>
+                        <li>Scan QR code komponen menggunakan scanner barcode fisik atau kamera</li>
+                        <li>Spesifikasi material diambil otomatis dari master data</li>
+                        <li>Material ID, RID, dan Quantity akan otomatis terurai dan terisi</li>
+                        <li>Klik "Input Material" untuk menyimpan transaksi ke sistem inventori</li>
                     </ul>
                 </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- QR Scan Error Modal -->
-    <div id="qrErrorModal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 400px; text-align: center;">
-            <div style="font-size: 48px; margin-bottom: 16px;">&#9888;&#65039;</div>
-            <h2 style="margin-bottom: 16px; color: var(--danger-color);">QR Code Tidak Dikenali</h2>
-            <p style="margin-bottom: 24px; color: var(--light-text); font-size: 16px;">
-                Silahkan masukkan ID secara manual
-            </p>
-            <button class="btn btn-primary" onclick="closeQRErrorModal()" style="width: 100%;">&#9989; OK</button>
+            </main>
         </div>
     </div>
 
+    <!-- Mobile Drawer Backdrop -->
+    <div id="mobileBackdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 hidden md:hidden" onclick="toggleSidebar()"></div>
+
+    <!-- QR Scan Error Modal -->
+    <div id="qrErrorModal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 hidden animate-in fade-in-50" style="display: none;">
+        <div class="bg-white rounded-xl border border-slate-200 shadow-xl max-w-sm w-full p-6 text-center space-y-4">
+            <div class="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
+                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-semibold text-slate-900">QR Code Tidak Dikenali</h3>
+                <p class="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                    Format kode QR tidak sesuai pola roll komponen SMT. Silakan periksa kembali atau gunakan form input manual.
+                </p>
+            </div>
+            <button type="button" onclick="closeQRErrorModal()"
+                class="w-full py-2.5 px-4 rounded-lg bg-[#091540] hover:bg-[#142563] text-white text-xs font-semibold transition shadow-sm">
+                OK, Mengerti
+            </button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
     <script src="/js/utils.js"></script>
     <script src="/js/session-timeout.js"></script>
     <script src="/js/material-input-scan.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+        });
+    </script>
 </body>
 
 </html>

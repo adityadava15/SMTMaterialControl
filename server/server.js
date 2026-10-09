@@ -35,6 +35,7 @@ app.use('/api/transactions', require('./routes/transactions'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/machine-output', require('./routes/machine-output'));
+app.use('/api/meter-types', require('./routes/meter-types'));
 
 // Root route - redirect to login
 app.get('/', (req, res) => {

@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const fs = require('fs');
+const path = require('path');
 const os = require('os');
 const db = require('../config/database');
 const { isAuthenticated, canAccessMaterials, isSuperAdmin } = require('../middleware/auth');
@@ -13,15 +15,36 @@ async function ensureMachineSchema() {
             id INT PRIMARY KEY AUTO_INCREMENT,
             transaction_id INT NULL,
             material_id VARCHAR(50) NOT NULL,
+            rid VARCHAR(50) NULL,
             material_name VARCHAR(255) NOT NULL,
             meter_type VARCHAR(50) NOT NULL,
             used_quantity INT NOT NULL DEFAULT 0,
             source_pc VARCHAR(100) NULL,
+            machine_id VARCHAR(20) NULL,
+            line_id VARCHAR(20) NULL,
             notes VARCHAR(255) NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE SET NULL
         )
     `);
+
+    try {
+        const [ridCol] = await db.query("SHOW COLUMNS FROM machine_meter_usage LIKE 'rid'");
+        if (ridCol.length === 0) {
+            await db.query("ALTER TABLE machine_meter_usage ADD COLUMN rid VARCHAR(50) NULL AFTER material_name");
+        }
+        const [machCol] = await db.query("SHOW COLUMNS FROM machine_meter_usage LIKE 'machine_id'");
+        if (machCol.length === 0) {
+            await db.query("ALTER TABLE machine_meter_usage ADD COLUMN machine_id VARCHAR(20) NULL AFTER source_pc");
+            await db.query("ALTER TABLE machine_meter_usage ADD COLUMN line_id VARCHAR(20) NULL AFTER machine_id");
+        }
+        const [txMachCol] = await db.query("SHOW COLUMNS FROM transactions LIKE 'machine_id'");
+        if (txMachCol.length === 0) {
+            await db.query("ALTER TABLE transactions ADD COLUMN machine_id VARCHAR(20) NULL AFTER product_type");
+        }
+    } catch (e) {
+        // Table created or column exists
+    }
 }
 
 // Start auto watcher on boot
@@ -59,17 +82,18 @@ router.get('/lan-info', isAuthenticated, canAccessMaterials, (req, res) => {
             port,
             serverUrls: urls,
             detectEndpoint: '/api/machine-output/detect-meter',
-            supportedMeterTypes: VALID_METER_TYPES
+            supportedMeterTypes: VALID_METER_TYPES,
+            machines: watcher.SMT_MACHINES
         }
     });
 });
 
-// Live Feed: Material from Output Stok automatically in Machine + Meter Type Usage Breakdown
+// Live Feed: Material from Output Stok automatically grouped per Machine + Meter Type Usage Breakdown
 router.get('/feed', isAuthenticated, canAccessMaterials, async (req, res) => {
     try {
         await ensureMachineSchema();
 
-        const { search = '', meterType = '', status = '', limit = 50 } = req.query;
+        const { search = '', meterType = '', status = '', machine = '', limit = 50 } = req.query;
         const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 100);
 
         // 1. Get all OUTPUT transactions (materials released from stock to machine)
@@ -77,7 +101,10 @@ router.get('/feed', isAuthenticated, canAccessMaterials, async (req, res) => {
             SELECT 
                 t.id AS transaction_id,
                 t.material_id,
+                t.rid,
+                t.machine_id AS tx_machine_id,
                 t.material_name,
+                t.material_name AS specification,
                 t.product_type AS default_meter_type,
                 t.operator_name AS stok_operator,
                 t.quantity AS total_masuk_mesin,
@@ -88,8 +115,8 @@ router.get('/feed', isAuthenticated, canAccessMaterials, async (req, res) => {
         const params = [];
 
         if (search) {
-            query += ' AND (t.material_id LIKE ? OR t.material_name LIKE ? OR t.operator_name LIKE ?)';
-            params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+            query += ' AND (t.material_id LIKE ? OR t.material_name LIKE ? OR t.operator_name LIKE ? OR t.rid LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
         }
 
         query += ' ORDER BY t.created_at DESC LIMIT ?';
@@ -106,28 +133,36 @@ router.get('/feed', isAuthenticated, canAccessMaterials, async (req, res) => {
                     totalPcsMasuk: 0,
                     totalPcsTerpakai: 0,
                     totalPcsSisa: 0,
-                    activeMeterTypesCount: 0
+                    activeMeterTypesCount: 0,
+                    machines: watcher.SMT_MACHINES,
+                    machineCounts: { 'A1': 0, 'A2': 0, 'A3': 0, 'B1': 0, 'B2': 0, 'UNASSIGNED': 0 },
+                    lineCounts: { 'Line A': 0, 'Line B': 0 }
                 }
             });
         }
 
         const transactionIds = stokRows.map(r => r.transaction_id);
 
-        // 2. Fetch meter usage breakdown for these transactions
+        // 2. Fetch meter usage breakdown for these transactions including machine info
         const [usageRows] = await db.query(`
             SELECT 
                 transaction_id,
                 material_id,
+                rid,
                 meter_type,
+                source_pc,
+                machine_id,
+                line_id,
                 SUM(used_quantity) AS total_used,
                 MAX(created_at) AS last_detected_at
             FROM machine_meter_usage
             WHERE transaction_id IN (?)
-            GROUP BY transaction_id, material_id, meter_type
+            GROUP BY transaction_id, material_id, rid, meter_type, source_pc, machine_id, line_id
         `, [transactionIds]);
 
         // Group usage by transaction_id
         const usageMap = new Map();
+        const txMachineMap = new Map();
         const allMeterTypesSet = new Set();
 
         for (const u of usageRows) {
@@ -137,13 +172,27 @@ router.get('/feed', isAuthenticated, canAccessMaterials, async (req, res) => {
             usageMap.get(u.transaction_id).push({
                 meterType: u.meter_type,
                 usedQuantity: Number(u.total_used) || 0,
+                rid: u.rid || null,
+                sourcePc: u.source_pc,
+                machineId: u.machine_id,
+                lineId: u.line_id,
                 lastDetectedAt: u.last_detected_at
             });
             allMeterTypesSet.add(u.meter_type);
+
+            if (u.machine_id && !txMachineMap.has(u.transaction_id)) {
+                txMachineMap.set(u.transaction_id, u.machine_id);
+            }
         }
+
+        // Get feeder material-to-machine mapping from machine logs on disk
+        const feederMachineMap = watcher.getFeederMachineMapping ? watcher.getFeederMachineMapping() : new Map();
 
         let totalPcsMasuk = 0;
         let totalPcsTerpakai = 0;
+
+        const machineCounts = { 'A1': 0, 'A2': 0, 'A3': 0, 'B1': 0, 'B2': 0, 'UNASSIGNED': 0 };
+        const lineCounts = { 'Line A': 0, 'Line B': 0 };
 
         // 3. Assemble enriched response
         let enrichedRows = stokRows.map(row => {
@@ -183,10 +232,41 @@ router.get('/feed', isAuthenticated, canAccessMaterials, async (req, res) => {
                 }
             }
 
+            // Detect Machine & Line
+            let detectedMachineId = row.tx_machine_id || txMachineMap.get(row.transaction_id);
+            if (!detectedMachineId && feederMachineMap.has(row.material_id)) {
+                detectedMachineId = feederMachineMap.get(row.material_id);
+            }
+            if (!detectedMachineId && usages.length > 0) {
+                for (const u of usages) {
+                    const src = String(u.sourcePc || '').toUpperCase();
+                    if (src.includes('A1')) { detectedMachineId = 'A1'; break; }
+                    if (src.includes('A2')) { detectedMachineId = 'A2'; break; }
+                    if (src.includes('A3')) { detectedMachineId = 'A3'; break; }
+                    if (src.includes('B1')) { detectedMachineId = 'B1'; break; }
+                    if (src.includes('B2')) { detectedMachineId = 'B2'; break; }
+                }
+            }
+            if (!detectedMachineId) {
+                detectedMachineId = 'UNASSIGNED';
+            }
+
+            const machineMeta = watcher.getMachineMeta(detectedMachineId);
+
+            if (machineCounts[machineMeta.id] !== undefined) {
+                machineCounts[machineMeta.id]++;
+            } else {
+                machineCounts['UNASSIGNED']++;
+            }
+            if (machineMeta.line === 'Line A') lineCounts['Line A']++;
+            if (machineMeta.line === 'Line B') lineCounts['Line B']++;
+
             return {
                 transactionId: row.transaction_id,
                 materialId: row.material_id,
+                rid: row.rid || null,
                 materialName: row.material_name,
+                specification: row.specification || row.material_name,
                 defaultMeterType: row.default_meter_type,
                 stokOperator: row.stok_operator,
                 stokOutputTime: row.stok_output_time,
@@ -197,10 +277,29 @@ router.get('/feed', isAuthenticated, canAccessMaterials, async (req, res) => {
                 machineStatus,
                 statusLabel,
                 statusColor,
+                machineId: machineMeta.id,
+                lineId: machineMeta.line,
+                machineBrand: machineMeta.brand,
+                machineName: machineMeta.name,
+                machineLabel: machineMeta.label,
+                machineFolder: machineMeta.folder,
+                machineColor: machineMeta.color,
                 meterBreakdown: usages,
                 lastDetectedAt
             };
         });
+
+        // Filter by machine if requested
+        if (machine && machine !== 'all') {
+            const cleanMachine = machine.trim().toUpperCase();
+            if (cleanMachine === 'LINE A' || cleanMachine === 'LINE_A' || cleanMachine === 'LINEA') {
+                enrichedRows = enrichedRows.filter(r => r.lineId === 'Line A');
+            } else if (cleanMachine === 'LINE B' || cleanMachine === 'LINE_B' || cleanMachine === 'LINEB') {
+                enrichedRows = enrichedRows.filter(r => r.lineId === 'Line B');
+            } else {
+                enrichedRows = enrichedRows.filter(r => r.machineId.toUpperCase() === cleanMachine);
+            }
+        }
 
         // Filter by meterType if requested
         if (meterType) {
@@ -225,7 +324,10 @@ router.get('/feed', isAuthenticated, canAccessMaterials, async (req, res) => {
                 totalPcsMasuk,
                 totalPcsTerpakai,
                 totalPcsSisa,
-                activeMeterTypesCount: allMeterTypesSet.size
+                activeMeterTypesCount: allMeterTypesSet.size,
+                machines: watcher.SMT_MACHINES,
+                machineCounts,
+                lineCounts
             }
         });
     } catch (error) {
@@ -239,10 +341,11 @@ router.post('/detect-meter', async (req, res) => {
     try {
         await ensureMachineSchema();
 
-        const { materialId, meterType, usedQuantity, sourcePc, notes, transactionId } = req.body;
+        const { materialId, meterType, usedQuantity, sourcePc, notes, transactionId, rid } = req.body;
 
         const cleanMaterialId = String(materialId || '').trim();
         const cleanMeterType = String(meterType || '').trim();
+        const cleanRid = typeof rid === 'string' && rid.trim() ? rid.trim() : null;
         const qty = parseInt(usedQuantity, 10);
 
         if (!cleanMaterialId) {
@@ -263,6 +366,15 @@ router.post('/detect-meter', async (req, res) => {
             const [rows] = await db.query(
                 'SELECT * FROM transactions WHERE id = ? AND transaction_type = "OUTPUT"',
                 [parseInt(transactionId, 10)]
+            );
+            if (rows.length > 0) tx = rows[0];
+        }
+
+        if (!tx && cleanRid) {
+            // First search by material_id AND rid
+            const [rows] = await db.query(
+                'SELECT * FROM transactions WHERE (material_id = ? OR material_id LIKE CONCAT(?, "-%") OR ? LIKE CONCAT(material_id, "-%")) AND rid = ? AND transaction_type = "OUTPUT" ORDER BY created_at DESC LIMIT 1',
+                [cleanMaterialId, cleanMaterialId, cleanMaterialId, cleanRid]
             );
             if (rows.length > 0) tx = rows[0];
         }
@@ -295,51 +407,194 @@ router.post('/detect-meter', async (req, res) => {
             });
         }
 
-        // 3. Determine source PC / IP
-        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'LAN-PC';
-        const detectedSource = sourcePc ? String(sourcePc).trim() : `PC (${clientIp})`;
+        // 3. Determine Machine & Line
+        const rawMachineId = req.body.machineId || req.body.machine || null;
+        let machineMeta = null;
+        if (rawMachineId) {
+            machineMeta = watcher.getMachineMeta(rawMachineId);
+        } else if (sourcePc) {
+            const up = String(sourcePc).toUpperCase();
+            if (up.includes('A1')) machineMeta = watcher.getMachineMeta('A1');
+            else if (up.includes('A2')) machineMeta = watcher.getMachineMeta('A2');
+            else if (up.includes('A3')) machineMeta = watcher.getMachineMeta('A3');
+            else if (up.includes('B1')) machineMeta = watcher.getMachineMeta('B1');
+            else if (up.includes('B2')) machineMeta = watcher.getMachineMeta('B2');
+        }
+        if (!machineMeta || machineMeta.id === 'UNASSIGNED') {
+            machineMeta = tx.machine_id ? watcher.getMachineMeta(tx.machine_id) : watcher.getMachineMeta('A1');
+        }
 
-        // 4. Insert into machine_meter_usage
+        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'LAN-PC';
+        const detectedSource = sourcePc ? String(sourcePc).trim() : `Mesin ${machineMeta.name} (${machineMeta.brand})`;
+        const effectiveRid = cleanRid || (tx ? tx.rid : null);
+
+        // 4. Insert into machine_meter_usage with machine_id and line_id
         const [insertResult] = await db.query(`
             INSERT INTO machine_meter_usage (
                 transaction_id,
                 material_id,
+                rid,
                 material_name,
                 meter_type,
                 used_quantity,
                 source_pc,
+                machine_id,
+                line_id,
                 notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             tx.id,
             tx.material_id,
+            effectiveRid,
             tx.material_name,
             cleanMeterType,
             qty,
             detectedSource,
-            notes ? String(notes).trim() : null
+            machineMeta.id,
+            machineMeta.line,
+            notes ? String(notes).trim() : `Deteksi Manual/LAN: ${machineMeta.label}`
         ]);
+
+        // Update tx machine if not assigned
+        if (tx && (!tx.machine_id || tx.machine_id === 'UNASSIGNED')) {
+            try {
+                await db.query('UPDATE transactions SET machine_id = ? WHERE id = ?', [machineMeta.id, tx.id]);
+            } catch (eTx) {}
+        }
 
         const newRemaining = Math.max(0, currentRemaining - qty);
 
         res.json({
             success: true,
-            message: `Deteksi berhasil: ${qty} pcs material "${tx.material_name}" dicatat untuk Type Meter "${cleanMeterType}"`,
+            message: `Deteksi berhasil: ${qty} pcs material "${tx.material_name}" dicatat pada ${machineMeta.label} untuk Type Meter "${cleanMeterType}"`,
             data: {
                 id: insertResult.insertId,
                 transactionId: tx.id,
                 materialId: tx.material_id,
+                rid: effectiveRid,
                 materialName: tx.material_name,
                 meterType: cleanMeterType,
                 usedQuantity: qty,
                 totalMasukMesin: tx.quantity,
                 sisaKomponenMesin: newRemaining,
-                sourcePc: detectedSource
+                sourcePc: detectedSource,
+                machineId: machineMeta.id,
+                lineId: machineMeta.line,
+                machineLabel: machineMeta.label
             }
         });
     } catch (error) {
         console.error('Detect meter usage error:', error);
         res.status(500).json({ error: error.message || 'Failed to record meter usage' });
+    }
+});
+
+// Assign or Reassign material to specific machine (Superadmin Only)
+router.post('/assign-machine', isAuthenticated, isSuperAdmin, async (req, res) => {
+    try {
+        await ensureMachineSchema();
+        const { transactionId, machineId } = req.body;
+        if (!transactionId || !machineId) {
+            return res.status(400).json({ error: 'transactionId dan machineId wajib diisi' });
+        }
+
+        const meta = watcher.getMachineMeta(machineId);
+        await db.query('UPDATE transactions SET machine_id = ? WHERE id = ?', [meta.id, transactionId]);
+        await db.query('UPDATE machine_meter_usage SET machine_id = ?, line_id = ? WHERE transaction_id = ?', [meta.id, meta.line, transactionId]);
+
+        res.json({
+            success: true,
+            message: `Material berhasil ditugaskan ke ${meta.label}`,
+            data: meta
+        });
+    } catch (err) {
+        console.error('Assign machine error:', err);
+        res.status(500).json({ error: 'Gagal menugaskan material ke mesin' });
+    }
+});
+
+// Test Connection between Web and Machine Pd Info folder
+router.post('/test-machine-folder', isAuthenticated, canAccessMaterials, async (req, res) => {
+    try {
+        const { machineId, customPath } = req.body;
+        if (!machineId && !customPath) {
+            return res.status(400).json({ error: 'machineId atau customPath wajib disertakan' });
+        }
+
+        const meta = watcher.getMachineMeta(machineId || 'A1');
+        const watcherConfig = watcher.loadWatcherConfig();
+        const configuredMachine = (watcherConfig.machines || []).find(m => m.id === meta.id) || meta;
+
+        let targetPath = (customPath && customPath.trim())
+            ? customPath.trim()
+            : watcher.resolveMachinePath(configuredMachine);
+
+        if (!targetPath) {
+            return res.json({
+                success: true,
+                reachable: false,
+                machineId: meta.id,
+                machineName: meta.name,
+                brand: meta.brand,
+                lineId: meta.line,
+                folderPath: '',
+                message: `⚠️ Path folder untuk Mesin ${meta.id} belum dikonfigurasi.`
+            });
+        }
+
+        const reachable = await watcher.checkPathAccessible(targetPath);
+        if (!reachable) {
+            return res.json({
+                success: true,
+                reachable: false,
+                machineId: meta.id,
+                machineName: meta.name,
+                brand: meta.brand,
+                lineId: meta.line,
+                folderPath: targetPath,
+                message: `⚠️ Folder "${targetPath}" tidak dapat diakses! Pastikan folder ada atau PC mesin terhubung ke LAN.`
+            });
+        }
+
+        // Folder is accessible, read log files
+        let logFilesCount = 0;
+        let latestLogFile = null;
+        try {
+            const files = fs.readdirSync(targetPath);
+            const logFiles = files.filter(f => f.toLowerCase().endsWith('.log'));
+            logFilesCount = logFiles.length;
+
+            if (logFiles.length > 0) {
+                const fileStats = logFiles.map(f => {
+                    try {
+                        const s = fs.statSync(path.join(targetPath, f));
+                        return { name: f, mtime: s.mtime, size: s.size };
+                    } catch (e) {
+                        return { name: f, mtime: new Date(0), size: 0 };
+                    }
+                }).sort((a, b) => b.mtime - a.mtime);
+
+                latestLogFile = fileStats[0];
+            }
+        } catch (readErr) {
+            console.warn('Read log files warning:', readErr.message);
+        }
+
+        res.json({
+            success: true,
+            reachable: true,
+            machineId: meta.id,
+            machineName: meta.name,
+            brand: meta.brand,
+            lineId: meta.line,
+            folderPath: targetPath,
+            logFilesCount,
+            latestLogFile,
+            message: `🟢 Terhubung! Web berhasil mengakses folder Pd Info ${meta.name} (${targetPath}). Ditemukan ${logFilesCount} file .log.`
+        });
+    } catch (err) {
+        console.error('Test machine folder error:', err);
+        res.status(500).json({ error: err.message || 'Gagal menguji koneksi folder' });
     }
 });
 
@@ -358,8 +613,8 @@ router.get('/meter-history', isAuthenticated, canAccessMaterials, async (req, re
         const params = [];
 
         if (search) {
-            whereClause += ' AND (material_id LIKE ? OR material_name LIKE ? OR source_pc LIKE ?)';
-            params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+            whereClause += ' AND (material_id LIKE ? OR material_name LIKE ? OR source_pc LIKE ? OR rid LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
         }
 
         if (meterType) {
@@ -374,7 +629,7 @@ router.get('/meter-history', isAuthenticated, canAccessMaterials, async (req, re
         const totalPages = Math.ceil(total / parsedLimit);
 
         // 2. Fetch paginated data
-        const dataQuery = `SELECT * FROM machine_meter_usage${whereClause} ORDER BY created_at ${sortOrder} LIMIT ? OFFSET ?`;
+        const dataQuery = `SELECT *, material_name AS specification FROM machine_meter_usage${whereClause} ORDER BY created_at ${sortOrder} LIMIT ? OFFSET ?`;
         const [rows] = await db.query(dataQuery, [...params, parsedLimit, offset]);
 
         res.json({
@@ -455,7 +710,7 @@ router.post('/watcher-config', isAuthenticated, isSuperAdmin, async (req, res) =
 });
 
 // Trigger Immediate Directory Scan
-router.post('/watcher-scan', isAuthenticated, isSuperAdmin, async (req, res) => {
+router.post('/watcher-scan', isAuthenticated, canAccessMaterials, async (req, res) => {
     try {
         const { overridePath } = req.body;
         const result = await watcher.scanConfiguredDirectory(overridePath);

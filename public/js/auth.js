@@ -77,16 +77,9 @@ async function handleLogin(e) {
         if (response.ok && data.success) {
             // Login successful
             showSuccessMessage('Login berhasil! Redirect...');
-            const normalizedRole = String((data.user && data.user.role) || '').trim().toLowerCase();
 
             setTimeout(() => {
-                if (normalizedRole === 'superadmin') {
-                    window.location.href = '/dashboard.html';
-                } else if (normalizedRole === 'admin') {
-                    window.location.href = '/material-output.html';
-                } else {
-                    window.location.href = '/dashboard.html';
-                }
+                window.location.href = '/dashboard.html';
             }, 500);
         } else {
             // Login failed

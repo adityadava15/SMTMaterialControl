@@ -71,8 +71,40 @@ const canAccessMaterials = async (req, res, next) => {
     return res.status(403).json({ error: 'Forbidden. Insufficient permissions.' });
 };
 
+// Check if user has access to master data (Superadmin, Admin, or user 'admin')
+const canAccessMasterData = async (req, res, next) => {
+    if (!req.session || !req.session.userId) {
+        return res.status(401).json({ error: 'Unauthorized. Please login.' });
+    }
+
+    let role = getNormalizedRole(req);
+    const username = String(req.session.username || '').trim().toLowerCase();
+
+    // Fallback for legacy sessions that don't have role saved yet
+    if (!role) {
+        try {
+            const [users] = await db.query('SELECT username, role FROM users WHERE id = ? LIMIT 1', [req.session.userId]);
+            if (users.length > 0) {
+                role = String(users[0].role || '').trim().toLowerCase();
+                req.session.role = role;
+                if (!req.session.username) {
+                    req.session.username = users[0].username;
+                }
+            }
+        } catch (error) {
+            console.error('canAccessMasterData role lookup error:', error);
+        }
+    }
+
+    if (role === 'superadmin' || role === 'admin' || role === 'user' || username === 'admin') {
+        return next();
+    }
+    return res.status(403).json({ error: 'Forbidden. Access required.' });
+};
+
 module.exports = {
     isAuthenticated,
     isSuperAdmin,
-    canAccessMaterials
+    canAccessMaterials,
+    canAccessMasterData
 };
