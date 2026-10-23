@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 09 Okt 2026 pada 09.47
+-- Waktu pembuatan: 23 Okt 2026 pada 10.01
 -- Versi server: 10.1.40-MariaDB
 -- Versi PHP: 7.3.5
 
@@ -4797,6 +4797,67 @@ CREATE TABLE `material_history` (
 -- --------------------------------------------------------
 
 --
+-- Struktur dari tabel `material_rolls`
+--
+
+CREATE TABLE `material_rolls` (
+  `id` int(11) NOT NULL,
+  `material_id` varchar(50) NOT NULL,
+  `rid` varchar(50) NOT NULL,
+  `quantity` int(11) NOT NULL DEFAULT '0',
+  `status` enum('active','consumed') NOT NULL DEFAULT 'active',
+  `input_transaction_id` int(11) DEFAULT NULL,
+  `output_transaction_id` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--
+-- Dumping data untuk tabel `material_rolls`
+--
+
+INSERT INTO `material_rolls` (`id`, `material_id`, `rid`, `quantity`, `status`, `input_transaction_id`, `output_transaction_id`, `created_at`, `updated_at`) VALUES
+(1, '2052700020-103154', '00202', 1000, 'active', 61, NULL, '2026-09-21 18:13:55', '2026-09-21 18:13:55'),
+(2, '2052700020-103154', '00102', 1000, 'active', 60, NULL, '2026-09-21 18:13:55', '2026-09-21 18:13:55'),
+(3, '2061500020-103204', '00023', 3000, 'active', 59, NULL, '2026-09-21 18:13:55', '2026-09-21 18:13:55'),
+(4, '2060900063-101670', '00100', 3000, 'active', 58, NULL, '2026-09-21 18:13:55', '2026-09-21 18:13:55'),
+(5, '2010101620', '00318', 10000, 'active', 57, NULL, '2026-09-21 18:13:55', '2026-09-21 18:13:55'),
+(7, '2010105960', '10724', 10000, 'active', 64, NULL, '2026-09-23 19:51:43', '2026-09-23 19:51:43'),
+(8, '2010105960', '10707', 10000, 'consumed', 65, 66, '2026-09-23 19:51:55', '2026-09-23 19:57:01'),
+(9, '2041101770', '00003', 2000, 'consumed', 67, 69, '2026-09-24 15:00:56', '2026-09-24 15:07:02'),
+(10, '2041101770', '00004', 2000, 'active', 68, NULL, '2026-09-24 15:01:20', '2026-09-24 15:01:20');
+
+-- --------------------------------------------------------
+
+--
+-- Struktur dari tabel `meter_types`
+--
+
+CREATE TABLE `meter_types` (
+  `id` int(11) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `created_by` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--
+-- Dumping data untuk tabel `meter_types`
+--
+
+INSERT INTO `meter_types` (`id`, `name`, `created_by`, `created_at`) VALUES
+(1, 'HXE128-KP', NULL, '2026-09-23 20:28:04'),
+(2, 'HXE12FR', NULL, '2026-09-23 20:28:04'),
+(3, 'HXE310', NULL, '2026-09-23 20:28:04'),
+(4, 'HXE310-KP', NULL, '2026-09-23 20:28:04'),
+(5, 'HXM300', 3, '2026-09-23 20:43:55'),
+(7, 'LED-BOARD-SPKLU', 3, '2026-09-24 15:05:53'),
+(8, 'HXE110', 1, '2026-09-29 07:56:07'),
+(9, 'HXE110-KP', 1, '2026-09-29 07:56:13'),
+(10, 'HXF300', 1, '2026-09-29 07:56:21');
+
+-- --------------------------------------------------------
+
+--
 -- Struktur dari tabel `operator_names`
 --
 
@@ -5233,6 +5294,28 @@ ALTER TABLE `material_history`
   ADD KEY `idx_material_history_material` (`material_id`);
 
 --
+-- Indeks untuk tabel `material_rolls`
+--
+ALTER TABLE `material_rolls`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_material_status` (`material_id`,`status`),
+  ADD KEY `idx_rid_status` (`rid`,`status`),
+  ADD KEY `input_transaction_id` (`input_transaction_id`),
+  ADD KEY `output_transaction_id` (`output_transaction_id`),
+  ADD KEY `idx_material_rolls_mat` (`material_id`),
+  ADD KEY `idx_material_rolls_rid` (`rid`),
+  ADD KEY `idx_material_rolls_status` (`status`);
+
+--
+-- Indeks untuk tabel `meter_types`
+--
+ALTER TABLE `meter_types`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `name` (`name`),
+  ADD KEY `created_by` (`created_by`),
+  ADD KEY `idx_meter_types_name` (`name`);
+
+--
 -- Indeks untuk tabel `operator_names`
 --
 ALTER TABLE `operator_names`
@@ -5290,10 +5373,22 @@ ALTER TABLE `material_history`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT untuk tabel `material_rolls`
+--
+ALTER TABLE `material_rolls`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+
+--
+-- AUTO_INCREMENT untuk tabel `meter_types`
+--
+ALTER TABLE `meter_types`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+
+--
 -- AUTO_INCREMENT untuk tabel `operator_names`
 --
 ALTER TABLE `operator_names`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT untuk tabel `processed_machine_logs`
@@ -5342,6 +5437,20 @@ ALTER TABLE `material_catalog`
 ALTER TABLE `material_history`
   ADD CONSTRAINT `material_history_ibfk_1` FOREIGN KEY (`material_id`) REFERENCES `materials` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `material_history_ibfk_2` FOREIGN KEY (`changed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
+--
+-- Ketidakleluasaan untuk tabel `material_rolls`
+--
+ALTER TABLE `material_rolls`
+  ADD CONSTRAINT `material_rolls_ibfk_1` FOREIGN KEY (`material_id`) REFERENCES `materials` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `material_rolls_ibfk_2` FOREIGN KEY (`input_transaction_id`) REFERENCES `transactions` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `material_rolls_ibfk_3` FOREIGN KEY (`output_transaction_id`) REFERENCES `transactions` (`id`) ON DELETE SET NULL;
+
+--
+-- Ketidakleluasaan untuk tabel `meter_types`
+--
+ALTER TABLE `meter_types`
+  ADD CONSTRAINT `meter_types_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL;
 
 --
 -- Ketidakleluasaan untuk tabel `transactions`

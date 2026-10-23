@@ -102,7 +102,11 @@ function normalizeCatalogRows(rawRows) {
 
         let qty = 1;
         if (qtyCol !== -1 && row[qtyCol] !== undefined && row[qtyCol] !== null && String(row[qtyCol]).trim() !== '') {
-            const parsed = parseInt(String(row[qtyCol]).replace(/[^0-9]/g, ''), 10);
+            let num = Number(row[qtyCol]);
+            if (isNaN(num)) {
+                num = parseFloat(String(row[qtyCol]).replace(/,/g, '.').replace(/[^0-9.]/g, ''));
+            }
+            const parsed = Math.round(num);
             if (!isNaN(parsed) && parsed > 0) qty = parsed;
         }
 

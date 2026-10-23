@@ -362,29 +362,72 @@ router.post('/detect-meter', async (req, res) => {
 
         // 1. Find corresponding active transaction in Output Stok
         let tx = null;
+        let currentRemaining = 0;
+
         if (transactionId) {
             const [rows] = await db.query(
-                'SELECT * FROM transactions WHERE id = ? AND transaction_type = "OUTPUT"',
+                `SELECT t.*, COALESCE(u.total_used, 0) AS total_used, (t.quantity - COALESCE(u.total_used, 0)) AS remaining
+                 FROM transactions t
+                 LEFT JOIN (
+                     SELECT transaction_id, SUM(used_quantity) AS total_used
+                     FROM machine_meter_usage
+                     GROUP BY transaction_id
+                 ) u ON t.id = u.transaction_id
+                 WHERE t.id = ? AND t.transaction_type = "OUTPUT"`,
                 [parseInt(transactionId, 10)]
             );
-            if (rows.length > 0) tx = rows[0];
+            if (rows.length > 0) {
+                tx = rows[0];
+                currentRemaining = Math.max(0, Number(tx.remaining) || 0);
+            }
         }
 
-        if (!tx && cleanRid) {
-            // First search by material_id AND rid
+        if (!tx && cleanRid && cleanRid !== '-') {
+            // Search by material_id AND rid with remaining capacity first (FIFO)
             const [rows] = await db.query(
-                'SELECT * FROM transactions WHERE (material_id = ? OR material_id LIKE CONCAT(?, "-%") OR ? LIKE CONCAT(material_id, "-%")) AND rid = ? AND transaction_type = "OUTPUT" ORDER BY created_at DESC LIMIT 1',
+                `SELECT t.*, COALESCE(u.total_used, 0) AS total_used, (t.quantity - COALESCE(u.total_used, 0)) AS remaining
+                 FROM transactions t
+                 LEFT JOIN (
+                     SELECT transaction_id, SUM(used_quantity) AS total_used
+                     FROM machine_meter_usage
+                     GROUP BY transaction_id
+                 ) u ON t.id = u.transaction_id
+                 WHERE (t.material_id = ? OR t.material_id LIKE CONCAT(?, "-%") OR ? LIKE CONCAT(t.material_id, "-%"))
+                   AND t.rid = ? AND t.transaction_type = "OUTPUT"
+                 ORDER BY t.created_at ASC`,
                 [cleanMaterialId, cleanMaterialId, cleanMaterialId, cleanRid]
             );
-            if (rows.length > 0) tx = rows[0];
+            if (rows.length > 0) {
+                const available = rows.find(r => (Number(r.remaining) || 0) >= qty)
+                               || rows.find(r => (Number(r.remaining) || 0) > 0)
+                               || rows[rows.length - 1];
+                tx = available;
+                currentRemaining = Math.max(0, Number(tx.remaining) || 0);
+            }
         }
 
         if (!tx) {
+            // Search by material_id with remaining capacity (FIFO)
             const [rows] = await db.query(
-                'SELECT * FROM transactions WHERE (material_id = ? OR material_id LIKE CONCAT(?, "-%") OR ? LIKE CONCAT(material_id, "-%")) AND transaction_type = "OUTPUT" ORDER BY created_at DESC LIMIT 1',
+                `SELECT t.*, COALESCE(u.total_used, 0) AS total_used, (t.quantity - COALESCE(u.total_used, 0)) AS remaining
+                 FROM transactions t
+                 LEFT JOIN (
+                     SELECT transaction_id, SUM(used_quantity) AS total_used
+                     FROM machine_meter_usage
+                     GROUP BY transaction_id
+                 ) u ON t.id = u.transaction_id
+                 WHERE (t.material_id = ? OR t.material_id LIKE CONCAT(?, "-%") OR ? LIKE CONCAT(t.material_id, "-%"))
+                   AND t.transaction_type = "OUTPUT"
+                 ORDER BY t.created_at ASC`,
                 [cleanMaterialId, cleanMaterialId, cleanMaterialId]
             );
-            if (rows.length > 0) tx = rows[0];
+            if (rows.length > 0) {
+                const available = rows.find(r => (Number(r.remaining) || 0) >= qty)
+                               || rows.find(r => (Number(r.remaining) || 0) > 0)
+                               || rows[rows.length - 1];
+                tx = available;
+                currentRemaining = Math.max(0, Number(tx.remaining) || 0);
+            }
         }
 
         if (!tx) {
@@ -392,14 +435,6 @@ router.post('/detect-meter', async (req, res) => {
                 error: `Material "${cleanMaterialId}" belum pernah dikeluarkan dari stok (Output Stok). Material harus di-output dari stok terlebih dahulu.`
             });
         }
-
-        // 2. Check current total used for this transaction
-        const [usageSum] = await db.query(
-            'SELECT COALESCE(SUM(used_quantity), 0) AS total_used FROM machine_meter_usage WHERE transaction_id = ?',
-            [tx.id]
-        );
-        const currentTotalUsed = Number(usageSum[0].total_used) || 0;
-        const currentRemaining = Math.max(0, tx.quantity - currentTotalUsed);
 
         if (qty > currentRemaining) {
             return res.status(400).json({

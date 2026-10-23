@@ -161,20 +161,55 @@ async function ensureSchemaExtensions() {
             console.log('Added idx_transactions_rid index');
         }
 
-        // Check if machine_meter_usage table exists and add rid column
-        const [machineUsageTable] = await pool.query("SHOW TABLES LIKE 'machine_meter_usage'");
-        if (machineUsageTable.length > 0) {
-            const [ridMachineColumn] = await pool.query("SHOW COLUMNS FROM machine_meter_usage LIKE 'rid'");
-            if (ridMachineColumn.length === 0) {
-                await pool.query('ALTER TABLE machine_meter_usage ADD COLUMN rid VARCHAR(50) NULL AFTER material_name');
-                console.log('Added machine_meter_usage.rid column');
-            }
+        // Ensure transactions.machine_id column exists
+        const [txMachCol] = await pool.query("SHOW COLUMNS FROM transactions LIKE 'machine_id'");
+        if (txMachCol.length === 0) {
+            await pool.query("ALTER TABLE transactions ADD COLUMN machine_id VARCHAR(20) NULL AFTER product_type");
+            console.log('Added transactions.machine_id column');
+        }
 
-            const [ridMachineIndex] = await pool.query("SHOW INDEX FROM machine_meter_usage WHERE Key_name = 'idx_machine_meter_usage_rid'");
-            if (ridMachineIndex.length === 0) {
-                await pool.query('CREATE INDEX idx_machine_meter_usage_rid ON machine_meter_usage(rid)');
-                console.log('Added idx_machine_meter_usage_rid index');
-            }
+        // Ensure machine_meter_usage table exists
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS machine_meter_usage (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                transaction_id INT NULL,
+                material_id VARCHAR(50) NOT NULL,
+                rid VARCHAR(50) NULL,
+                material_name VARCHAR(255) NOT NULL,
+                meter_type VARCHAR(50) NOT NULL,
+                used_quantity INT NOT NULL DEFAULT 0,
+                source_pc VARCHAR(100) NULL,
+                machine_id VARCHAR(20) NULL,
+                line_id VARCHAR(20) NULL,
+                notes VARCHAR(255) NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE SET NULL
+            )
+        `);
+
+        // Check if machine_meter_usage table has rid, machine_id, line_id columns
+        const [ridMachineColumn] = await pool.query("SHOW COLUMNS FROM machine_meter_usage LIKE 'rid'");
+        if (ridMachineColumn.length === 0) {
+            await pool.query('ALTER TABLE machine_meter_usage ADD COLUMN rid VARCHAR(50) NULL AFTER material_name');
+            console.log('Added machine_meter_usage.rid column');
+        }
+
+        const [machCol] = await pool.query("SHOW COLUMNS FROM machine_meter_usage LIKE 'machine_id'");
+        if (machCol.length === 0) {
+            await pool.query("ALTER TABLE machine_meter_usage ADD COLUMN machine_id VARCHAR(20) NULL AFTER source_pc");
+            console.log('Added machine_meter_usage.machine_id column');
+        }
+
+        const [lineCol] = await pool.query("SHOW COLUMNS FROM machine_meter_usage LIKE 'line_id'");
+        if (lineCol.length === 0) {
+            await pool.query("ALTER TABLE machine_meter_usage ADD COLUMN line_id VARCHAR(20) NULL AFTER machine_id");
+            console.log('Added machine_meter_usage.line_id column');
+        }
+
+        const [ridMachineIndex] = await pool.query("SHOW INDEX FROM machine_meter_usage WHERE Key_name = 'idx_machine_meter_usage_rid'");
+        if (ridMachineIndex.length === 0) {
+            await pool.query('CREATE INDEX idx_machine_meter_usage_rid ON machine_meter_usage(rid)');
+            console.log('Added idx_machine_meter_usage_rid index');
         }
 
         // Material Rolls Table (tracks individual roll IDs per material)
@@ -232,13 +267,13 @@ async function ensureSchemaExtensions() {
 
                     if (outTx.length > 0) {
                         await pool.query(`
-                            INSERT INTO material_rolls (material_id, rid, quantity, status, input_transaction_id, output_transaction_id, created_at, output_at)
-                            VALUES (?, ?, ?, 'OUTPUT', ?, ?, ?, ?)
-                        `, [tx.material_id, cleanRid, tx.quantity, tx.id, outTx[0].id, tx.created_at, outTx[0].created_at]);
+                            INSERT INTO material_rolls (material_id, rid, quantity, status, input_transaction_id, output_transaction_id, created_at)
+                            VALUES (?, ?, ?, 'consumed', ?, ?, ?)
+                        `, [tx.material_id, cleanRid, tx.quantity, tx.id, outTx[0].id, tx.created_at]);
                     } else {
                         await pool.query(`
                             INSERT INTO material_rolls (material_id, rid, quantity, status, input_transaction_id, created_at)
-                            VALUES (?, ?, ?, 'IN_STOCK', ?, ?)
+                            VALUES (?, ?, ?, 'active', ?, ?)
                         `, [tx.material_id, cleanRid, tx.quantity, tx.id, tx.created_at]);
                         seenActiveRids.add(cleanRid);
                     }

@@ -57,8 +57,9 @@ router.post('/output', isAuthenticated, canAccessMaterials, async (req, res) => 
             return res.status(400).json({ error: 'Product type is required' });
         }
 
-        const [meterTypeRows] = await db.query('SELECT id FROM meter_types WHERE name = ?', [normalizedProductType]);
-        if (meterTypeRows.length === 0 && !PRODUCT_TYPES.includes(normalizedProductType)) {
+        const [meterTypeRows] = await db.query('SELECT id FROM meter_types WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))', [normalizedProductType]);
+        const isDefaultType = PRODUCT_TYPES.some(p => p.toUpperCase() === normalizedProductType.toUpperCase());
+        if (meterTypeRows.length === 0 && !isDefaultType) {
             return res.status(400).json({ error: 'Type meter tidak valid atau belum terdaftar' });
         }
 
@@ -85,7 +86,7 @@ router.post('/output', isAuthenticated, canAccessMaterials, async (req, res) => 
 
             for (const item of items) {
                 const { materialId, quantity, rid } = item;
-                const normalizedItemRid = typeof rid === 'string' && rid.trim() ? rid.trim() : null;
+                const normalizedItemRid = typeof rid === 'string' && rid.trim() && rid.trim() !== '-' ? rid.trim() : null;
 
                 if (!materialId || !quantity) {
                     throw new Error('Material ID and quantity are required for each item');

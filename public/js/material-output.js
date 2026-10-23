@@ -180,7 +180,7 @@ async function processQRCode(scannedText) {
     // If not standard QR code format, try direct RID lookup
     if (!parsed || !parsed.id) {
         const potentialRid = extractRID(trimmed) || (trimmed.length <= 15 ? trimmed : null);
-        if (potentialRid) {
+        if (potentialRid && potentialRid !== '-') {
             try {
                 const res = await fetch('/api/materials/roll-by-rid/' + encodeURIComponent(potentialRid));
                 const d = await res.json();
@@ -207,7 +207,18 @@ async function processQRCode(scannedText) {
 
 function showQRErrorModal() {
     const modal = document.getElementById('qrErrorModal');
-    if (modal) modal.style.display = 'flex';
+    if (modal) {
+        modal.style.display = 'flex';
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+    } else {
+        showToast('Format kode QR tidak dikenali!', 'error');
+        if (scanInput) {
+            scanInput.value = '';
+            scanInput.focus();
+        }
+    }
 }
 
 function closeQRErrorModal() {
@@ -218,6 +229,9 @@ function closeQRErrorModal() {
         scanInput.focus();
     }
 }
+
+window.showQRErrorModal = showQRErrorModal;
+window.closeQRErrorModal = closeQRErrorModal;
 
 async function handleScan(materialId, scannedQty = null, rid = null) {
     if (!materialId) {
@@ -231,16 +245,17 @@ async function handleScan(materialId, scannedQty = null, rid = null) {
         let materialData = null;
 
         // Verify roll if RID is present
-        if (rid) {
+        const cleanRid = (rid && typeof rid === 'string') ? rid.trim() : null;
+        if (cleanRid && cleanRid !== '-') {
             try {
-                const rollRes = await fetch('/api/materials/roll-by-rid/' + encodeURIComponent(rid));
+                const rollRes = await fetch('/api/materials/roll-by-rid/' + encodeURIComponent(cleanRid));
                 const rollData = await rollRes.json();
                 if (rollRes.ok && rollData.success && rollData.data) {
                     if (!scannedQty || scannedQty <= 0) {
                         scannedQty = rollData.data.roll_quantity;
                     }
                 } else {
-                    const errorMsg = rollData.error || `Roll dengan RID "${rid}" tidak ditemukan dalam stok aktif!`;
+                    const errorMsg = rollData.error || `Roll dengan RID "${cleanRid}" tidak ditemukan dalam stok aktif!`;
                     showScanError(errorMsg);
                     showToast(errorMsg, 'error');
                     if (scanInput) scanInput.focus();

@@ -352,6 +352,25 @@
     <!-- Mobile Drawer Backdrop -->
     <div id="mobileBackdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 hidden md:hidden" onclick="toggleSidebar()"></div>
 
+    <!-- QR Scan Error Modal -->
+    <div id="qrErrorModal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 hidden animate-in fade-in-50" style="display: none;">
+        <div class="bg-white rounded-xl border border-slate-200 shadow-xl max-w-sm w-full p-6 text-center space-y-4">
+            <div class="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
+                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-semibold text-slate-900">QR Code Tidak Dikenali</h3>
+                <p class="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                    Format kode QR tidak sesuai pola roll komponen SMT. Silakan periksa kembali atau pastikan QR code terbaca jelas.
+                </p>
+            </div>
+            <button type="button" onclick="closeQRErrorModal()"
+                class="w-full py-2.5 px-4 rounded-lg bg-[#091540] hover:bg-[#142563] text-white text-xs font-semibold transition shadow-sm">
+                OK, Mengerti
+            </button>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="/js/utils.js"></script>
     <script src="/js/session-timeout.js"></script>

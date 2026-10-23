@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     material_name VARCHAR(255) NOT NULL,
     transaction_type VARCHAR(10) NOT NULL, -- 'INPUT' or 'OUTPUT'
     product_type VARCHAR(50) NULL,
+    machine_id VARCHAR(20) NULL,
     operator_name VARCHAR(100) NULL,
     quantity INT NOT NULL,
     rid VARCHAR(50) NULL, -- Roll ID (5 digit unique roll identifier from QR)
@@ -95,6 +96,8 @@ CREATE TABLE IF NOT EXISTS machine_meter_usage (
     meter_type VARCHAR(50) NOT NULL,
     used_quantity INT NOT NULL DEFAULT 0,
     source_pc VARCHAR(100) NULL,
+    machine_id VARCHAR(20) NULL,
+    line_id VARCHAR(20) NULL,
     notes VARCHAR(255) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE SET NULL

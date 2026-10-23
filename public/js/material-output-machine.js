@@ -109,7 +109,12 @@ function filterByMachine(machineId) {
     if (window.lucide) lucide.createIcons();
 }
 
+let machinePageInitialized = false;
+
 async function initMachinePage() {
+    if (machinePageInitialized) return;
+    machinePageInitialized = true;
+
     const user = await checkAuth();
     if (!user) return;
 
@@ -133,7 +138,11 @@ async function initMachinePage() {
 
     setupFilters();
 
-    // Auto-refresh feed & watcher every 10 seconds for real-time updates
+    // Auto-refresh feed & watcher every 10 seconds for real-time updates (clear any previous interval)
+    if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+    }
     autoRefreshTimer = setInterval(() => {
         loadMachineFeed(true);
         loadDetectionHistory(true);
@@ -1606,10 +1615,8 @@ function escapeSingleQuote(str) {
 }
 
 // ========== INITIALIZATION ==========
-document.addEventListener('DOMContentLoaded', () => {
-    initMachinePage();
-});
-
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMachinePage);
+} else {
     initMachinePage();
 }

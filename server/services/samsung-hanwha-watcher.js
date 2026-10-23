@@ -444,32 +444,53 @@ async function processSingleLogFile(fileInfo, options = {}) {
 
         // 1. Find corresponding active transaction in Output Stok
         let tx = null;
-        if (item.rid) {
+        let remainingInMachine = 0;
+
+        if (item.rid && item.rid !== '-') {
             const [txRowsWithRid] = await db.query(
-                'SELECT * FROM transactions WHERE (material_id = ? OR material_id LIKE CONCAT(?, "-%") OR ? LIKE CONCAT(material_id, "-%")) AND rid = ? AND transaction_type = "OUTPUT" ORDER BY created_at DESC LIMIT 1',
+                `SELECT t.*, COALESCE(u.total_used, 0) AS total_used, (t.quantity - COALESCE(u.total_used, 0)) AS remaining
+                 FROM transactions t
+                 LEFT JOIN (
+                     SELECT transaction_id, SUM(used_quantity) AS total_used
+                     FROM machine_meter_usage
+                     GROUP BY transaction_id
+                 ) u ON t.id = u.transaction_id
+                 WHERE (t.material_id = ? OR t.material_id LIKE CONCAT(?, "-%") OR ? LIKE CONCAT(t.material_id, "-%"))
+                   AND t.rid = ? AND t.transaction_type = "OUTPUT"
+                 ORDER BY t.created_at ASC`,
                 [item.materialId, item.materialId, item.materialId, item.rid]
             );
-            if (txRowsWithRid.length > 0) tx = txRowsWithRid[0];
+            if (txRowsWithRid.length > 0) {
+                const activeTx = txRowsWithRid.find(r => (Number(r.remaining) || 0) > 0) || txRowsWithRid[txRowsWithRid.length - 1];
+                tx = activeTx;
+                remainingInMachine = Math.max(0, Number(tx.remaining) || 0);
+            }
         }
 
         if (!tx) {
             const [txRows] = await db.query(
-                'SELECT * FROM transactions WHERE (material_id = ? OR material_id LIKE CONCAT(?, "-%") OR ? LIKE CONCAT(material_id, "-%")) AND transaction_type = "OUTPUT" ORDER BY created_at DESC LIMIT 1',
+                `SELECT t.*, COALESCE(u.total_used, 0) AS total_used, (t.quantity - COALESCE(u.total_used, 0)) AS remaining
+                 FROM transactions t
+                 LEFT JOIN (
+                     SELECT transaction_id, SUM(used_quantity) AS total_used
+                     FROM machine_meter_usage
+                     GROUP BY transaction_id
+                 ) u ON t.id = u.transaction_id
+                 WHERE (t.material_id = ? OR t.material_id LIKE CONCAT(?, "-%") OR ? LIKE CONCAT(t.material_id, "-%"))
+                   AND t.transaction_type = "OUTPUT"
+                 ORDER BY t.created_at ASC`,
                 [item.materialId, item.materialId, item.materialId]
             );
-            if (txRows.length > 0) tx = txRows[0];
+            if (txRows.length > 0) {
+                const activeTx = txRows.find(r => (Number(r.remaining) || 0) > 0) || txRows[txRows.length - 1];
+                tx = activeTx;
+                remainingInMachine = Math.max(0, Number(tx.remaining) || 0);
+            }
         }
 
         // Check remaining
         let allowedQty = consumedQty;
         if (tx) {
-            const [sumRow] = await db.query(
-                'SELECT COALESCE(SUM(used_quantity), 0) AS total_used FROM machine_meter_usage WHERE transaction_id = ?',
-                [tx.id]
-            );
-            const currentUsed = Number(sumRow[0].total_used) || 0;
-            const remainingInMachine = Math.max(0, tx.quantity - currentUsed);
-
             if (remainingInMachine <= 0) {
                 // Feeder exhausted for this transaction
                 continue;

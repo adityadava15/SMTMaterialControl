@@ -21,6 +21,22 @@ function resetActivityTimer() {
     }
 }
 
+// Keep session alive explicitly (pings server to refresh rolling session cookie)
+async function keepSessionAlive() {
+    resetActivityTimer();
+    try {
+        const response = await fetch('/api/auth/check');
+        const data = await response.json();
+        if (!data.authenticated) {
+            clearInterval(sessionCheckInterval);
+            alert('Session telah berakhir. Silakan login kembali.');
+            window.location.href = '/login.html';
+        }
+    } catch (error) {
+        console.error('Keep session alive error:', error);
+    }
+}
+
 // Events that count as user activity
 const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
 
@@ -42,16 +58,20 @@ function showSessionWarning() {
         transform: translateX(-50%);
         background: #f59e0b;
         color: white;
-        padding: 16px 24px;
+        padding: 14px 22px;
         border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
         z-index: 10000;
         font-weight: 600;
         animation: slideDown 0.3s ease-out;
+        display: flex;
+        align-items: center;
+        gap: 10px;
     `;
     warning.innerHTML = `
-         Session akan berakhir dalam 2 menit karena tidak ada aktivitas.
-        <button onclick="resetActivityTimer()" style="margin-left: 12px; padding: 4px 12px; background: white; color: #f59e0b; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+        <span style="font-size: 1.25rem;">⚠️</span>
+        <span>Session akan berakhir dalam 2 menit karena tidak ada aktivitas.</span>
+        <button onclick="keepSessionAlive()" style="margin-left: 12px; padding: 6px 14px; background: white; color: #b45309; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
             Tetap Login
         </button>
     `;
@@ -85,18 +105,21 @@ async function checkSession() {
         return;
     }
 
-    // Check if session is still valid on server
-    try {
-        const response = await fetch('/api/auth/check');
-        const data = await response.json();
+    // Only ping /api/auth/check if the user is active (< 13 min idle),
+    // to avoid rolling the server-side session indefinitely while the user is idle in the warning window
+    if (inactiveTime < SESSION_TIMEOUT - WARNING_TIME) {
+        try {
+            const response = await fetch('/api/auth/check');
+            const data = await response.json();
 
-        if (!data.authenticated) {
-            clearInterval(sessionCheckInterval);
-            alert('Session telah berakhir. Silakan login kembali.');
-            window.location.href = '/login.html';
+            if (!data.authenticated) {
+                clearInterval(sessionCheckInterval);
+                alert('Session telah berakhir. Silakan login kembali.');
+                window.location.href = '/login.html';
+            }
+        } catch (error) {
+            console.error('Session check error:', error);
         }
-    } catch (error) {
-        console.error('Session check error:', error);
     }
 }
 
@@ -121,5 +144,6 @@ if (window.location.pathname !== '/login.html') {
     startSessionMonitoring();
 }
 
-// Make resetActivityTimer available globally for warning button
+// Make functions available globally
 window.resetActivityTimer = resetActivityTimer;
+window.keepSessionAlive = keepSessionAlive;
