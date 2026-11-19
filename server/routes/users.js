@@ -130,24 +130,31 @@ router.post('/operators', isAuthenticated, isSuperAdmin, async (req, res) => {
             return res.status(400).json({ error: 'Operator name must be 100 characters or less' });
         }
 
+        let insertId = null;
         try {
-            await db.query(
+            const [insertResult] = await db.query(
                 'INSERT INTO operator_names (name, created_by) VALUES (?, ?)',
                 [normalizedName, req.session.userId]
             );
+            insertId = insertResult.insertId;
         } catch (insertError) {
             // Backward compatibility: older DB may not have operator_names.created_by
             if (insertError && insertError.code === 'ER_BAD_FIELD_ERROR') {
-                await db.query(
+                const [insertResult] = await db.query(
                     'INSERT INTO operator_names (name) VALUES (?)',
                     [normalizedName]
                 );
+                insertId = insertResult.insertId;
             } else {
                 throw insertError;
             }
         }
 
-        res.json({ success: true, message: 'Operator created successfully' });
+        res.json({
+            success: true,
+            message: 'Operator created successfully',
+            data: { id: insertId, name: normalizedName }
+        });
     } catch (error) {
         if (error && error.code === 'ER_DUP_ENTRY') {
             return res.status(400).json({ error: 'Operator name already exists' });
@@ -250,26 +257,7 @@ router.put('/:id/password', isAuthenticated, isSuperAdmin, async (req, res) => {
     }
 });
 
-// Delete user (Superadmin only)
-router.delete('/:id', isAuthenticated, isSuperAdmin, async (req, res) => {
-    try {
-        const userIdToDelete = req.params.id;
-
-        // Prevent deleting yourself
-        if (parseInt(userIdToDelete) === req.session.userId) {
-            return res.status(400).json({ error: 'Cannot delete your own account' });
-        }
-
-        await db.query('DELETE FROM users WHERE id = ?', [userIdToDelete]);
-
-        res.json({ success: true, message: 'User deleted successfully' });
-    } catch (error) {
-        console.error('Delete user error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// Delete output operator (Superadmin only)
+// Delete output operator (Superadmin only) - must be placed before /:id to prevent route clash
 router.delete('/operators/:id', isAuthenticated, isSuperAdmin, async (req, res) => {
     try {
         await ensureOperatorTableSchema();
@@ -290,6 +278,33 @@ router.delete('/operators/:id', isAuthenticated, isSuperAdmin, async (req, res) 
     } catch (error) {
         console.error('Delete operator error:', error);
         res.status(500).json({ error: 'Failed to delete operator' });
+    }
+});
+
+// Delete user (Superadmin only)
+router.delete('/:id', isAuthenticated, isSuperAdmin, async (req, res) => {
+    try {
+        const userId = parseInt(req.params.id, 10);
+
+        if (Number.isNaN(userId) || userId <= 0) {
+            return res.status(400).json({ error: 'Invalid user id' });
+        }
+
+        // Prevent deleting yourself
+        if (userId === req.session.userId) {
+            return res.status(400).json({ error: 'Cannot delete your own account' });
+        }
+
+        const [result] = await db.query('DELETE FROM users WHERE id = ?', [userId]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({ success: true, message: 'User deleted successfully' });
+    } catch (error) {
+        console.error('Delete user error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

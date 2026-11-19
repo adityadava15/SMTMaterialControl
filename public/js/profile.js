@@ -21,16 +21,6 @@ const newMeterTypeNameInput = document.getElementById('newMeterTypeName');
 const addMeterTypeBtn = document.getElementById('addMeterTypeBtn');
 const meterTypeListBody = document.getElementById('meterTypeListBody');
 
-const catalogUploadForm = document.getElementById('catalogUploadForm');
-const catalogFileInput = document.getElementById('catalogFileInput');
-const uploadCatalogBtn = document.getElementById('uploadCatalogBtn');
-const catalogSearchInput = document.getElementById('catalogSearchInput');
-const materialCatalogBody = document.getElementById('materialCatalogBody');
-const materialCatalogPagination = document.getElementById('materialCatalogPagination');
-
-let currentCatalogPage = 1;
-const catalogLimit = 20;
-
 // Load Profile Data
 async function loadProfile() {
     try {
@@ -41,14 +31,20 @@ async function loadProfile() {
             const user = data.data;
 
             // Update Form
-            usernameInput.value = user.username;
+            if (usernameInput && user) {
+                usernameInput.value = user.username || '';
+            }
 
             // Update Header
-            document.getElementById('headerUsername').textContent = user.username;
-            document.getElementById('headerRole').textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+            const userRole = (user && user.role) ? String(user.role).trim() : '';
+            const formattedRole = userRole ? (userRole.charAt(0).toUpperCase() + userRole.slice(1)) : '-';
+            const headerUsernameEl = document.getElementById('headerUsername');
+            const headerRoleEl = document.getElementById('headerRole');
+            if (headerUsernameEl) headerUsernameEl.textContent = (user && user.username) || '';
+            if (headerRoleEl) headerRoleEl.textContent = formattedRole;
 
             // Show Master Type Meter if Superadmin or Admin
-            if (user.role === 'superadmin' || user.role === 'admin') {
+            if (userRole === 'superadmin' || userRole === 'admin') {
                 if (meterTypeManagementCard) {
                     meterTypeManagementCard.style.display = 'block';
                 }
@@ -56,8 +52,10 @@ async function loadProfile() {
             }
 
             // Show User Management if Superadmin
-            if (user.role === 'superadmin') {
-                userManagementCard.style.display = 'block';
+            if (userRole === 'superadmin') {
+                if (userManagementCard) {
+                    userManagementCard.style.display = 'block';
+                }
                 loadAllUsers();
                 loadOperatorMaster();
             }

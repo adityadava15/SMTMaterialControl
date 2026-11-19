@@ -187,7 +187,7 @@ router.post('/', isAuthenticated, canAccessMaterials, async (req, res) => {
     try {
         const { id, quantity, rid } = req.body;
         const normalizedId = typeof id === 'string' ? id.trim() : '';
-        const normalizedRid = typeof rid === 'string' && rid.trim() ? rid.trim() : null;
+        const normalizedRid = typeof rid === 'string' && rid.trim() && rid.trim() !== '-' ? rid.trim() : null;
         const parsedQty = parseInt(quantity, 10);
 
         if (!normalizedId || Number.isNaN(parsedQty) || parsedQty <= 0) {
@@ -220,7 +220,7 @@ router.post('/', isAuthenticated, canAccessMaterials, async (req, res) => {
 
         // Name source: master catalog first, fallback existing material name
         const [catalogRows] = await db.query(
-            'SELECT specification FROM material_catalog WHERE material_id = ?',
+            'SELECT specification FROM material_catalog WHERE LOWER(TRIM(material_id)) = LOWER(TRIM(?))',
             [normalizedId]
         );
         const catalogName = catalogRows[0] ? (catalogRows[0].specification || catalogRows[0].material_name) : null;
