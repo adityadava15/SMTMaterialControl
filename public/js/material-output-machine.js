@@ -196,6 +196,12 @@ function renderLanStatus(lan) {
 // ========== DIRECTORY WATCHER LOGIC (5 PC MESIN SMT) ==========
 
 let currentWatcherData = null;
+let isMachineConfigDirty = false;
+let isBrowseModalOpen = false;
+
+function markMachineConfigDirty() {
+    isMachineConfigDirty = true;
+}
 
 async function loadWatcherStatus(isSilent = false) {
     if (!isSuperAdminUser) return;
@@ -205,14 +211,14 @@ async function loadWatcherStatus(isSilent = false) {
 
         if (response.ok && result.success) {
             currentWatcherData = result.data;
-            renderWatcherStatus(result.data);
+            renderWatcherStatus(result.data, !isSilent);
         }
     } catch (error) {
         if (!isSilent) console.error('Failed to load watcher status:', error);
     }
 }
 
-function renderWatcherStatus(data) {
+function renderWatcherStatus(data, forceRender = false) {
     if (!data) return;
 
     const statusBadge = document.getElementById('watcherStatusBadge');
@@ -268,10 +274,12 @@ function renderWatcherStatus(data) {
 
     // Render 5 machines configuration rows
     if (tbody && data.machines && Array.isArray(data.machines)) {
-        // Don't overwrite if user is actively typing in inputs
+        // Don't overwrite if user is actively typing, has unsaved changes, or has Browse modal open
         const activeInput = document.activeElement;
         const isUserTyping = activeInput && (activeInput.classList.contains('machine-ip-input') || activeInput.classList.contains('machine-path-input'));
-        if (isUserTyping) return;
+        if (!forceRender && (isUserTyping || isMachineConfigDirty || isBrowseModalOpen)) return;
+
+        isMachineConfigDirty = false;
 
         tbody.innerHTML = data.machines.map(m => {
             const isHanwha = m.brand && m.brand.toLowerCase().includes('hanwha');
@@ -299,21 +307,34 @@ function renderWatcherStatus(data) {
                             class="form-input machine-ip-input" 
                             data-id="${m.id}" 
                             value="${escapeHtml(m.ip || '')}" 
+                            oninput="markMachineConfigDirty()"
                             placeholder="Misal: 192.168.1.10${m.id === 'A1' ? '1' : (m.id === 'A2' ? '2' : (m.id === 'A3' ? '3' : (m.id === 'B1' ? '4' : '5')))}" 
                             style="height: 36px; font-family: 'Courier New', monospace; font-size: 13px; font-weight: 600; min-width: 150px;"
                         >
                     </td>
                     <td>
-                        <input 
-                            type="text" 
-                            class="form-input machine-path-input" 
-                            data-id="${m.id}" 
-                            value="${escapeHtml(displayPath)}" 
-                            placeholder="Pd Info (atau path lokal/UNC)" 
-                            style="height: 36px; font-family: 'Courier New', monospace; font-size: 12px; min-width: 180px;"
-                        >
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <input 
+                                type="text" 
+                                class="form-input machine-path-input" 
+                                data-id="${m.id}" 
+                                value="${escapeHtml(displayPath)}" 
+                                oninput="markMachineConfigDirty()"
+                                placeholder="Pd Info (atau path lokal/UNC)" 
+                                style="height: 36px; font-family: 'Courier New', monospace; font-size: 12px; min-width: 200px; flex: 1;"
+                            >
+                            <button 
+                                type="button" 
+                                class="btn btn-secondary btn-sm" 
+                                style="height: 36px; padding: 0 10px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0; background: #f8fafc; border: 1px solid #cbd5e1; color: #0f172a;"
+                                onclick="openBrowseDirectoryModal('${m.id}')"
+                                title="Browse & Pilih Direktori Folder untuk Mesin ${m.id}"
+                            >
+                                📁 Browse
+                            </button>
+                        </div>
                     </td>
-                    <td>
+                    <td id="machineStatusCell_${m.id}">
                         ${statusHtml}
                     </td>
                     <td style="text-align: right; white-space: nowrap;">
@@ -379,9 +400,10 @@ async function saveAllMachinesConfig() {
         });
         const result = await response.json();
         if (response.ok && result.success) {
+            isMachineConfigDirty = false;
             showToast('Konfigurasi 5 PC Mesin SMT berhasil disimpan!', 'success');
             currentWatcherData = result.data;
-            renderWatcherStatus(result.data);
+            renderWatcherStatus(result.data, true);
             await loadProcessedLogs();
             await loadMachineFeed();
         } else {
@@ -416,18 +438,540 @@ async function testSingleMachine(machineId) {
         });
         const result = await response.json();
         if (response.ok && result.success) {
+            const statusCell = document.getElementById(`machineStatusCell_${machineId}`);
+            if (statusCell) {
+                statusCell.innerHTML = result.reachable
+                    ? `<span style="color: #16a34a; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;" title="Path: ${escapeHtml(result.path || pathVal)}">🟢 Terhubung</span>`
+                    : `<span style="color: #dc2626; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;" title="Folder tidak ditemukan atau PC offline">⚠️ Offline</span>`;
+            }
+
             if (result.reachable) {
                 showToast(`Mesin ${machineId}: ${result.message}`, 'success');
             } else {
                 showToast(`Mesin ${machineId}: ${result.message}`, 'warning');
             }
-            await loadWatcherStatus(true);
+            if (!isMachineConfigDirty) {
+                await loadWatcherStatus(true);
+            }
         } else {
             showToast(result.error || 'Gagal mengetes koneksi', 'error');
         }
     } catch (err) {
         console.error('Test connection error:', err);
         showToast('Gagal menghubungi server', 'error');
+    }
+}
+
+// ========== DIRECTORY BROWSER MODAL LOGIC ==========
+
+let currentBrowseTargetMachine = 'A1'; // 'A1', 'A2', 'A3', 'B1', 'B2', or 'ALL'
+let currentBrowsedPath = '';
+let currentBrowseParentPath = null;
+let currentBrowseData = null;
+
+function openBrowseDirectoryModal(targetMachineId = 'A1') {
+    const modal = document.getElementById('browseDirectoryModal');
+    if (!modal) return;
+
+    currentBrowseTargetMachine = targetMachineId || 'A1';
+    isBrowseModalOpen = true;
+
+    const titleEl = document.getElementById('browseModalTitle');
+    const subtitleEl = document.getElementById('browseModalSubtitle');
+    const confirmBtn = document.getElementById('browseConfirmSelectBtn');
+
+    if (currentBrowseTargetMachine === 'ALL') {
+        if (titleEl) titleEl.textContent = 'Browse Folder Induk (Semua 5 Mesin SMT)';
+        if (subtitleEl) subtitleEl.textContent = 'Pilih folder induk (misal: Pd Info) untuk otomatis mengisi path a1, a2, a3, b1, b2 pada ke-5 mesin';
+        if (confirmBtn) confirmBtn.innerHTML = '<span>✅ Terapkan ke Semua 5 Mesin</span>';
+    } else {
+        const meta = getMachineDef(currentBrowseTargetMachine);
+        const label = meta ? `${meta.name}` : `Mesin ${currentBrowseTargetMachine}`;
+        if (titleEl) titleEl.textContent = `Browse Direktori - ${label}`;
+        if (subtitleEl) subtitleEl.textContent = `Pilih folder direktori log mesin (.log) untuk ${label} (misal: folder "${currentBrowseTargetMachine.toLowerCase()}")`;
+        if (confirmBtn) confirmBtn.innerHTML = `<span>✅ Pilih Folder Ini (Line ${currentBrowseTargetMachine})</span>`;
+    }
+
+    const refId = currentBrowseTargetMachine === 'ALL' ? 'A1' : currentBrowseTargetMachine;
+    const pathEl = document.querySelector(`.machine-path-input[data-id="${refId}"]`);
+    const ipEl = document.querySelector(`.machine-ip-input[data-id="${refId}"]`);
+
+    const initialPath = pathEl ? pathEl.value.trim() : '';
+    const machineIp = ipEl ? ipEl.value.trim() : '';
+
+    toggleNewFolderBox(false);
+    modal.style.display = 'flex';
+    if (window.lucide) lucide.createIcons();
+
+    fetchAndRenderBrowseDirectory(initialPath, machineIp, false);
+}
+
+function closeBrowseDirectoryModal() {
+    const modal = document.getElementById('browseDirectoryModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    isBrowseModalOpen = false;
+}
+
+async function fetchAndRenderBrowseDirectory(targetPath = '', machineIp = '', strict = false) {
+    const listEl = document.getElementById('browseDirectoryList');
+    const infoEl = document.getElementById('browseCurrentDirInfo');
+
+    if (!machineIp) {
+        const refId = currentBrowseTargetMachine === 'ALL' ? 'A1' : currentBrowseTargetMachine;
+        const ipEl = document.querySelector(`.machine-ip-input[data-id="${refId}"]`);
+        machineIp = ipEl ? ipEl.value.trim() : '';
+    }
+
+    if (listEl) {
+        listEl.innerHTML = `
+            <div class="p-8 text-center text-slate-400 text-xs">
+                <div class="spinner"></div>
+                <p class="mt-2">Membaca direktori folder...</p>
+            </div>
+        `;
+    }
+
+    try {
+        const response = await fetch('/api/machine-output/browse-directory', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                path: targetPath,
+                ip: machineIp,
+                strict
+            })
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            if (infoEl) infoEl.innerHTML = `<span class="text-red-600 font-semibold">⚠️ ${escapeHtml(result.error || 'Gagal membuka direktori')}</span>`;
+            if (listEl) {
+                listEl.innerHTML = `
+                    <div class="p-6 text-center text-red-600 text-xs">
+                        ${escapeHtml(result.error || 'Direktori tidak dapat diakses')}
+                    </div>
+                `;
+            }
+            return;
+        }
+
+        currentBrowseData = result;
+        currentBrowsedPath = result.currentPath || '';
+        currentBrowseParentPath = result.parentPath || null;
+
+        renderBrowseModalContent(result);
+    } catch (err) {
+        console.error('Browse directory fetch error:', err);
+        if (listEl) {
+            listEl.innerHTML = `
+                <div class="p-6 text-center text-red-600 text-xs">
+                    Gagal menghubungi server saat membaca folder.
+                </div>
+            `;
+        }
+    }
+}
+
+function renderBrowseModalContent(data) {
+    const addressInput = document.getElementById('browsePathAddressInput');
+    const previewEl = document.getElementById('browseSelectedPathPreview');
+    const upBtn = document.getElementById('browseUpBtn');
+    const quickBar = document.getElementById('browseQuickAccessBar');
+    const crumbsEl = document.getElementById('browseBreadcrumbs');
+    const infoEl = document.getElementById('browseCurrentDirInfo');
+    const smartActionEl = document.getElementById('browseSmartActionContainer');
+    const countEl = document.getElementById('browseSubfolderCount');
+    const listEl = document.getElementById('browseDirectoryList');
+    const applyAllBtn = document.getElementById('browseApplyAllMachinesBtn');
+
+    if (addressInput) addressInput.value = data.currentPath || '';
+    if (previewEl) {
+        if (currentBrowseTargetMachine === 'ALL') {
+            previewEl.textContent = `${data.currentPath}\\a1 .. b2 (Otomatis 5 Mesin)`;
+        } else {
+            previewEl.textContent = data.currentPath || '-';
+        }
+    }
+    if (upBtn) {
+        upBtn.disabled = !data.parentPath;
+        upBtn.style.opacity = data.parentPath ? '1' : '0.45';
+        upBtn.style.cursor = data.parentPath ? 'pointer' : 'not-allowed';
+    }
+
+    // 1. Render Drives & Quick Access Shortcuts
+    if (quickBar) {
+        const drivesHtml = (data.drives || []).map(d => {
+            const isCurrentDrive = (data.currentPath || '').toUpperCase().startsWith(d.name.toUpperCase());
+            return `
+                <button
+                    type="button"
+                    onclick="fetchAndRenderBrowseDirectory('${escapeSingleQuote(d.path)}', '', true)"
+                    class="px-2 py-1 rounded-md text-[11px] font-semibold border transition cursor-pointer inline-flex items-center gap-1 ${
+                        isCurrentDrive
+                            ? 'bg-[#091540] text-white border-[#091540]'
+                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }"
+                    title="Buka ${escapeHtml(d.label)}"
+                >
+                    <span>💾</span>
+                    <span>${escapeHtml(d.name)}</span>
+                </button>
+            `;
+        }).join('');
+
+        const quickHtml = (data.quickAccess || []).map(q => {
+            const isActive = (data.currentPath || '').toLowerCase() === (q.path || '').toLowerCase();
+            const iconEmoji = q.isNetwork ? '🌐' : (q.label.includes('Pd Info') ? '📂' : (q.label === 'Documents' ? '📄' : (q.label === 'Desktop' ? '🖥️' : (q.label === 'User Home' ? '🏠' : '📦'))));
+            return `
+                <button
+                    type="button"
+                    onclick="fetchAndRenderBrowseDirectory('${escapeSingleQuote(q.path)}', '', true)"
+                    class="px-2 py-1 rounded-md text-[11px] font-medium border transition cursor-pointer inline-flex items-center gap-1 ${
+                        isActive
+                            ? 'bg-blue-700 text-white border-blue-700'
+                            : (q.isNetwork ? 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100' : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200')
+                    }"
+                    title="${escapeHtml(q.path)}"
+                >
+                    <span>${iconEmoji}</span>
+                    <span>${escapeHtml(q.label)}</span>
+                </button>
+            `;
+        }).join('');
+
+        quickBar.innerHTML = drivesHtml + quickHtml;
+    }
+
+    // 2. Render Breadcrumbs
+    if (crumbsEl) {
+        const crumbs = data.breadcrumbs || [];
+        if (crumbs.length === 0) {
+            crumbsEl.innerHTML = `<span class="text-slate-400 italic">Pilih folder...</span>`;
+        } else {
+            crumbsEl.innerHTML = crumbs.map((c, idx) => {
+                const isLast = idx === crumbs.length - 1;
+                return `
+                    <button
+                        type="button"
+                        onclick="fetchAndRenderBrowseDirectory('${escapeSingleQuote(c.path)}', '', true)"
+                        class="px-1.5 py-0.5 rounded hover:bg-slate-200 transition cursor-pointer font-mono text-[11px] ${
+                            isLast ? 'font-bold text-[#091540] bg-blue-50 border border-blue-200' : 'text-slate-600'
+                        }"
+                    >
+                        ${escapeHtml(c.name)}
+                    </button>
+                    ${!isLast ? '<span class="text-slate-400 select-none">&rsaquo;</span>' : ''}
+                `;
+            }).join('');
+        }
+    }
+
+    // 3. Render Current Folder Info & Smart Subfolder Actions
+    const detectedSubs = data.detectedMachineSubfolders || {};
+    const detectedKeys = Object.keys(detectedSubs);
+
+    if (infoEl) {
+        if (!data.reachable && data.error) {
+            infoEl.innerHTML = `<span class="text-red-600 font-semibold">⚠️ ${escapeHtml(data.error)}</span>`;
+        } else {
+            const logBadge = data.logFilesCount > 0
+                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">🟢 ${data.logFilesCount} file .log di folder ini</span>`
+                : `<span class="text-slate-500 text-[11px]">0 file .log langsung di folder ini</span>`;
+
+            const subHint = detectedKeys.length > 0
+                ? `<span class="ml-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-300">📁 Subfolder Mesin: ${detectedKeys.join(', ')}</span>`
+                : '';
+
+            infoEl.innerHTML = `
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="font-semibold text-slate-800">Status Folder:</span>
+                    ${logBadge}
+                    ${subHint}
+                </div>
+            `;
+        }
+    }
+
+    if (smartActionEl) {
+        let smartHtml = '';
+        if (currentBrowseTargetMachine !== 'ALL' && detectedSubs[currentBrowseTargetMachine]) {
+            const targetSubPath = detectedSubs[currentBrowseTargetMachine];
+            smartHtml = `
+                <button
+                    type="button"
+                    onclick="confirmSelectBrowsedDirectory('${escapeSingleQuote(targetSubPath)}')"
+                    class="px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition cursor-pointer shadow-2xs"
+                >
+                    🎯 Langsung Pilih Subfolder "${currentBrowseTargetMachine.toLowerCase()}"
+                </button>
+            `;
+        }
+        smartActionEl.innerHTML = smartHtml;
+    }
+
+    if (applyAllBtn) {
+        if (currentBrowseTargetMachine !== 'ALL' && (detectedKeys.length >= 2 || (data.currentPath || '').toLowerCase().endsWith('pd info'))) {
+            applyAllBtn.classList.remove('hidden');
+        } else {
+            applyAllBtn.classList.add('hidden');
+        }
+    }
+
+    // 4. Render Subdirectories List
+    const dirs = data.directories || [];
+    if (countEl) countEl.textContent = `${dirs.length} Subfolder`;
+
+    if (listEl) {
+        if (dirs.length === 0) {
+            listEl.innerHTML = `
+                <div class="p-8 text-center text-slate-400 text-xs space-y-1">
+                    <div class="text-2xl">📂</div>
+                    <div class="font-semibold text-slate-600">Tidak ada subfolder di dalam direktori ini</div>
+                    <div class="text-[11px] text-slate-400">
+                        Klik tombol <strong>"✅ Pilih Folder Ini"</strong> di bawah untuk menggunakan folder ini.
+                    </div>
+                </div>
+            `;
+        } else {
+            listEl.innerHTML = dirs.map(d => {
+                const isTargetMatch = currentBrowseTargetMachine !== 'ALL' && d.name.toUpperCase() === currentBrowseTargetMachine.toUpperCase();
+                let badges = '';
+
+                if (isTargetMatch) {
+                    badges += `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">🎯 Cocok dgn Mesin ${currentBrowseTargetMachine}</span>`;
+                } else if (d.isMachineSubfolder) {
+                    badges += `<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">Subfolder Mesin ${escapeHtml(d.name.toUpperCase())}</span>`;
+                } else if (d.isPdInfo) {
+                    badges += `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">Folder Induk Pd Info</span>`;
+                }
+
+                if (d.logCount > 0) {
+                    badges += `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">🟢 ${d.logCount} .log</span>`;
+                }
+
+                return `
+                    <div
+                        class="px-3.5 py-2.5 flex items-center justify-between gap-2 hover:bg-blue-50/60 transition cursor-pointer group ${
+                            isTargetMatch ? 'bg-amber-50/50' : ''
+                        }"
+                        onclick="fetchAndRenderBrowseDirectory('${escapeSingleQuote(d.path)}', '', true)"
+                        title="Klik untuk membuka folder ${escapeHtml(d.name)}"
+                    >
+                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                            <span class="text-base shrink-0">${d.isPdInfo || isTargetMatch ? '📂' : '📁'}</span>
+                            <span class="text-xs font-semibold text-slate-800 group-hover:text-blue-800 truncate">${escapeHtml(d.name)}</span>
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                ${badges}
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0" onclick="event.stopPropagation();">
+                            <button
+                                type="button"
+                                onclick="fetchAndRenderBrowseDirectory('${escapeSingleQuote(d.path)}', '', true)"
+                                class="px-2 py-1 rounded border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 text-[11px] font-medium transition cursor-pointer"
+                                title="Buka isi folder ${escapeHtml(d.name)}"
+                            >
+                                Buka &rarr;
+                            </button>
+                            <button
+                                type="button"
+                                onclick="confirmSelectBrowsedDirectory('${escapeSingleQuote(d.path)}')"
+                                class="px-2.5 py-1 rounded bg-[#091540] hover:bg-[#142563] text-white text-[11px] font-semibold transition cursor-pointer"
+                                title="Langsung pilih folder ${escapeHtml(d.name)}"
+                            >
+                                Pilih
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+}
+
+function browseParentDirectory() {
+    if (currentBrowseParentPath) {
+        fetchAndRenderBrowseDirectory(currentBrowseParentPath, '', true);
+    }
+}
+
+function refreshCurrentBrowseDirectory() {
+    fetchAndRenderBrowseDirectory(currentBrowsedPath, '', true);
+}
+
+function navigateToTypedBrowsePath() {
+    const input = document.getElementById('browsePathAddressInput');
+    const typed = input ? input.value.trim() : '';
+    if (!typed) return;
+    fetchAndRenderBrowseDirectory(typed, '', true);
+}
+
+function toggleNewFolderBox(forceState) {
+    const box = document.getElementById('browseNewFolderBox');
+    const input = document.getElementById('browseNewFolderNameInput');
+    if (!box) return;
+
+    const show = typeof forceState === 'boolean' ? forceState : box.classList.contains('hidden');
+    if (show) {
+        box.classList.remove('hidden');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+    } else {
+        box.classList.add('hidden');
+    }
+}
+
+async function createNewFolderInBrowser() {
+    const input = document.getElementById('browseNewFolderNameInput');
+    const folderName = input ? input.value.trim() : '';
+    if (!folderName) {
+        showToast('Masukkan nama folder baru terlebih dahulu', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/machine-output/create-directory', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                parentPath: currentBrowsedPath,
+                folderName
+            })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showToast(result.message || 'Folder berhasil dibuat', 'success');
+            toggleNewFolderBox(false);
+            await fetchAndRenderBrowseDirectory(result.newPath || currentBrowsedPath, '', true);
+        } else {
+            showToast(result.error || 'Gagal membuat folder', 'error');
+        }
+    } catch (err) {
+        console.error('Create folder error:', err);
+        showToast('Gagal menghubungi server', 'error');
+    }
+}
+
+async function createMachineSubfoldersInBrowser() {
+    if (!currentBrowsedPath) return;
+    try {
+        const response = await fetch('/api/machine-output/create-directory', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                parentPath: currentBrowsedPath,
+                createMachineSubfolders: true
+            })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showToast(result.message || 'Subfolder a1..b2 berhasil dibuat!', 'success');
+            toggleNewFolderBox(false);
+            await fetchAndRenderBrowseDirectory(currentBrowsedPath, '', true);
+        } else {
+            showToast(result.error || 'Gagal membuat subfolder a1..b2', 'error');
+        }
+    } catch (err) {
+        console.error('Create machine subfolders error:', err);
+        showToast('Gagal menghubungi server', 'error');
+    }
+}
+
+async function openNativeWindowsFolderPicker() {
+    const btn = document.getElementById('nativePickerBtn');
+    const originalHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳</span><span>Membuka Windows Explorer...</span>';
+    }
+
+    try {
+        const response = await fetch('/api/machine-output/pick-native-folder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                initialPath: currentBrowsedPath,
+                machineId: currentBrowseTargetMachine
+            })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            if (!result.cancelled && result.selectedPath) {
+                showToast(`Folder dipilih: ${result.selectedPath}`, 'success');
+                await fetchAndRenderBrowseDirectory(result.selectedPath, '', true);
+            }
+        } else {
+            showToast(result.error || 'Gagal membuka dialog Windows Explorer', 'error');
+        }
+    } catch (err) {
+        console.error('Native folder picker error:', err);
+        showToast('Gagal membuka dialog Windows Explorer', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+}
+
+async function applyCurrentFolderToAllMachines(baseFolderOverride = null) {
+    const baseDir = String(baseFolderOverride || currentBrowsedPath || '').trim().replace(/[\\\/]+$/, '');
+    if (!baseDir) {
+        showToast('Pilih folder induk terlebih dahulu', 'warning');
+        return;
+    }
+
+    const sep = baseDir.includes('/') ? '/' : '\\';
+    const machineIds = ['A1', 'A2', 'A3', 'B1', 'B2'];
+
+    machineIds.forEach(id => {
+        const inputEl = document.querySelector(`.machine-path-input[data-id="${id}"]`);
+        if (inputEl) {
+            inputEl.value = `${baseDir}${sep}${id.toLowerCase()}`;
+        }
+    });
+
+    markMachineConfigDirty();
+    closeBrowseDirectoryModal();
+
+    const autoSaveEl = document.getElementById('browseAutoSaveCheckbox');
+    if (!autoSaveEl || autoSaveEl.checked) {
+        await saveAllMachinesConfig();
+    } else {
+        showToast('Path ke-5 mesin telah diisi. Klik "Simpan Konfigurasi IP" untuk menyimpan.', 'info');
+    }
+}
+
+async function confirmSelectBrowsedDirectory(overridePath = null) {
+    const chosenPath = String(overridePath || currentBrowsedPath || '').trim();
+    if (!chosenPath) {
+        showToast('Pilih folder terlebih dahulu', 'warning');
+        return;
+    }
+
+    if (currentBrowseTargetMachine === 'ALL') {
+        await applyCurrentFolderToAllMachines(chosenPath);
+        return;
+    }
+
+    const inputEl = document.querySelector(`.machine-path-input[data-id="${currentBrowseTargetMachine}"]`);
+    if (inputEl) {
+        inputEl.value = chosenPath;
+    }
+
+    markMachineConfigDirty();
+    const targetMachine = currentBrowseTargetMachine;
+    closeBrowseDirectoryModal();
+
+    const autoSaveEl = document.getElementById('browseAutoSaveCheckbox');
+    if (!autoSaveEl || autoSaveEl.checked) {
+        await saveAllMachinesConfig();
+    } else {
+        await testSingleMachine(targetMachine);
     }
 }
 

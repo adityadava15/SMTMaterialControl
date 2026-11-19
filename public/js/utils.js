@@ -63,9 +63,26 @@ function toggleSidebar() {
             if (backdrop) backdrop.classList.add('hidden');
         }
     } else {
-        sidebar.classList.toggle('hidden');
+        if (sidebar.classList.contains('md:hidden')) {
+            sidebar.classList.remove('md:hidden');
+            sidebar.classList.add('md:flex');
+        } else {
+            sidebar.classList.add('md:hidden');
+            sidebar.classList.remove('md:flex');
+        }
     }
 }
+
+window.addEventListener('resize', () => {
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('mobileBackdrop');
+    if (!sidebar) return;
+    if (window.innerWidth >= 768) {
+        sidebar.classList.remove('fixed', 'inset-y-0', 'left-0', 'z-50', 'w-72', 'shadow-2xl');
+        sidebar.classList.add('hidden');
+        if (backdrop) backdrop.classList.add('hidden');
+    }
+});
 
 // Logout
 async function logout() {

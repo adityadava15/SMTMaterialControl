@@ -793,4 +793,442 @@ router.get('/processed-logs', isAuthenticated, isSuperAdmin, async (req, res) =>
     }
 });
 
+// ========== DIRECTORY BROWSER & NATIVE FOLDER PICKER ==========
+
+const { execFile } = require('child_process');
+
+function getAvailableDrives() {
+    const drives = [];
+    const letters = 'CDEFGHIJKLMNOPQRSTUVWXYZ';
+    for (const ch of letters) {
+        const driveRoot = `${ch}:\\`;
+        try {
+            if (fs.existsSync(driveRoot)) {
+                drives.push({
+                    label: `Drive (${ch}:)`,
+                    name: `${ch}:`,
+                    path: driveRoot
+                });
+            }
+        } catch (e) {
+            // Skip inaccessible drive
+        }
+    }
+    return drives;
+}
+
+function getQuickAccessPaths(machineIp = '') {
+    const homeDir = os.homedir();
+    const projectDir = path.resolve(__dirname, '../..');
+    const candidates = [
+        { label: 'Documents', path: path.join(homeDir, 'Documents'), icon: 'file-text' },
+        { label: 'Desktop', path: path.join(homeDir, 'Desktop'), icon: 'monitor' },
+        { label: 'User Home', path: homeDir, icon: 'home' },
+        { label: 'Downloads', path: path.join(homeDir, 'Downloads'), icon: 'download' },
+        { label: 'Folder Project', path: projectDir, icon: 'folder-git-2' }
+    ];
+
+    const quickAccess = [];
+    const seen = new Set();
+
+    // Check if there is a "Pd Info" folder inside Documents or Project parent
+    const extraCandidates = [
+        path.join(homeDir, 'Documents', 'Pd Info'),
+        path.join(homeDir, 'Documents', 'Adit', 'Pd Info'),
+        path.join(path.dirname(projectDir), 'Pd Info'),
+        path.join(projectDir, 'Pd Info')
+    ];
+    for (const p of extraCandidates) {
+        try {
+            if (fs.existsSync(p) && !seen.has(p.toLowerCase())) {
+                seen.add(p.toLowerCase());
+                quickAccess.push({ label: 'Pd Info (Lokal)', path: p, icon: 'folder-check' });
+            }
+        } catch (e) {}
+    }
+
+    for (const item of candidates) {
+        try {
+            if (fs.existsSync(item.path) && !seen.has(item.path.toLowerCase())) {
+                seen.add(item.path.toLowerCase());
+                quickAccess.push(item);
+            }
+        } catch (e) {}
+    }
+
+    const cleanIp = String(machineIp || '').trim();
+    if (cleanIp) {
+        quickAccess.push({
+            label: `LAN \\\\${cleanIp}\\Pd Info`,
+            path: `\\\\${cleanIp}\\Pd Info`,
+            icon: 'network',
+            isNetwork: true
+        });
+    }
+
+    return quickAccess;
+}
+
+function buildBreadcrumbs(targetPath) {
+    const clean = String(targetPath || '').trim();
+    if (!clean) return [];
+
+    // Check UNC path: \\192.168.1.101\Pd Info\a1
+    if (clean.startsWith('\\\\') || clean.startsWith('//')) {
+        const normalized = clean.replace(/\//g, '\\').replace(/^\\\\+/, '');
+        const parts = normalized.split('\\').filter(Boolean);
+        if (parts.length === 0) return [];
+
+        const host = parts[0];
+        const crumbs = [{ name: `\\\\${host}`, path: `\\\\${host}` }];
+        let acc = `\\\\${host}`;
+        for (let i = 1; i < parts.length; i++) {
+            acc = `${acc}\\${parts[i]}`;
+            crumbs.push({ name: parts[i], path: acc });
+        }
+        return crumbs;
+    }
+
+    // Local Windows path: C:\Users\hexing\Documents
+    const normalized = path.resolve(clean);
+    const parsed = path.parse(normalized);
+    const root = parsed.root || 'C:\\';
+    const crumbs = [{ name: root.replace(/\\$/, ''), path: root }];
+
+    const rest = normalized.slice(root.length);
+    const parts = rest.split(path.sep).filter(Boolean);
+    let current = root;
+    for (const part of parts) {
+        current = path.join(current, part);
+        crumbs.push({ name: part, path: current });
+    }
+    return crumbs;
+}
+
+// Browse Directories on Server / Local / LAN Share
+router.post('/browse-directory', isAuthenticated, canAccessMaterials, async (req, res) => {
+    try {
+        const { path: rawRequestedPath, ip: machineIp, strict } = req.body || {};
+        const drives = getAvailableDrives();
+        const quickAccess = getQuickAccessPaths(machineIp);
+        const homeDir = os.homedir();
+        const defaultFallback = fs.existsSync(path.join(homeDir, 'Documents'))
+            ? path.join(homeDir, 'Documents')
+            : homeDir;
+
+        let requestedPath = String(rawRequestedPath || '').trim();
+        let fallbackUsed = false;
+        let fallbackMessage = '';
+
+        // If requestedPath is just a share folder name like "Pd Info" without drive or slashes
+        if (requestedPath && !requestedPath.includes('\\') && !requestedPath.includes('/') && !requestedPath.includes(':')) {
+            if (machineIp && String(machineIp).trim()) {
+                const uncCandidate = `\\\\${String(machineIp).trim()}\\${requestedPath}`;
+                if (await watcher.checkPathAccessible(uncCandidate)) {
+                    requestedPath = uncCandidate;
+                } else {
+                    requestedPath = defaultFallback;
+                    fallbackUsed = true;
+                }
+            } else {
+                requestedPath = defaultFallback;
+                fallbackUsed = true;
+            }
+        }
+
+        if (!requestedPath) {
+            requestedPath = defaultFallback;
+        }
+
+        let targetPath = requestedPath;
+        let isAccessible = await watcher.checkPathAccessible(targetPath);
+
+        if (!isAccessible) {
+            // If user explicitly typed/clicked a path in strict mode (e.g. testing a LAN path or specific path), report if it's unreachable or walk up
+            const isUnc = targetPath.startsWith('\\\\') || targetPath.startsWith('//');
+            if (isUnc && strict) {
+                return res.json({
+                    success: true,
+                    reachable: false,
+                    currentPath: targetPath,
+                    parentPath: null,
+                    breadcrumbs: buildBreadcrumbs(targetPath),
+                    directories: [],
+                    logFilesCount: 0,
+                    sampleLogFiles: [],
+                    detectedMachineSubfolders: {},
+                    drives,
+                    quickAccess,
+                    error: `Folder jaringan "${targetPath}" tidak dapat diakses (PC Mesin offline atau folder belum di-share).`
+                });
+            }
+
+            // Walk up parent directories to find the nearest existing local folder
+            let candidate = targetPath;
+            const currentHomeLower = homeDir.toLowerCase();
+            let foundParent = null;
+
+            if (!isUnc) {
+                for (let depth = 0; depth < 10; depth++) {
+                    const parent = path.dirname(candidate);
+                    if (!parent || parent === candidate) break;
+                    // Avoid falling back to C:\Users if it was another user's profile (like C:\Users\Rama-Notebook)
+                    if (parent.toLowerCase() === 'c:\\users' && !targetPath.toLowerCase().startsWith(currentHomeLower)) {
+                        break;
+                    }
+                    if (fs.existsSync(parent)) {
+                        foundParent = parent;
+                        break;
+                    }
+                    candidate = parent;
+                }
+            }
+
+            targetPath = foundParent || defaultFallback;
+            fallbackUsed = true;
+            fallbackMessage = `Path sebelumnya ("${requestedPath}") tidak ditemukan di PC ini, dialihkan ke "${targetPath}".`;
+            isAccessible = await watcher.checkPathAccessible(targetPath);
+        }
+
+        const SKIP_SYSTEM_DIRS = new Set([
+            '$recycle.bin',
+            'system volume information',
+            'recovery',
+            'perflogs',
+            'msocache',
+            'documents and settings'
+        ]);
+
+        let entries = [];
+        try {
+            entries = await fs.promises.readdir(targetPath, { withFileTypes: true });
+        } catch (readErr) {
+            return res.json({
+                success: true,
+                reachable: false,
+                currentPath: targetPath,
+                parentPath: path.dirname(targetPath) !== targetPath ? path.dirname(targetPath) : null,
+                breadcrumbs: buildBreadcrumbs(targetPath),
+                directories: [],
+                logFilesCount: 0,
+                sampleLogFiles: [],
+                detectedMachineSubfolders: {},
+                drives,
+                quickAccess,
+                error: `Tidak memiliki izin atau gagal membaca folder "${targetPath}": ${readErr.message}`
+            });
+        }
+
+        const directories = [];
+        const logFilesInCurrent = [];
+        const detectedMachineSubfolders = {};
+        const machineFolderIds = new Set(['a1', 'a2', 'a3', 'b1', 'b2']);
+
+        for (const entry of entries) {
+            const nameLower = entry.name.toLowerCase();
+            if (entry.isDirectory()) {
+                if (SKIP_SYSTEM_DIRS.has(nameLower) || entry.name.startsWith('$')) continue;
+
+                const subFullPath = path.join(targetPath, entry.name);
+                const isMachineSub = machineFolderIds.has(nameLower);
+                if (isMachineSub) {
+                    detectedMachineSubfolders[nameLower.toUpperCase()] = subFullPath;
+                }
+
+                let subLogCount = 0;
+                let hasSubdirs = false;
+                try {
+                    const subItems = fs.readdirSync(subFullPath, { withFileTypes: true });
+                    for (const subIt of subItems) {
+                        if (subIt.isDirectory()) hasSubdirs = true;
+                        else if (subIt.isFile() && subIt.name.toLowerCase().endsWith('.log')) {
+                            subLogCount++;
+                        }
+                    }
+                } catch (e) {
+                    // Permission denied on child folder; still allow listing it
+                }
+
+                directories.push({
+                    name: entry.name,
+                    path: subFullPath,
+                    logCount: subLogCount,
+                    hasSubdirs,
+                    isMachineSubfolder: isMachineSub,
+                    isPdInfo: nameLower === 'pd info' || nameLower.includes('pd info')
+                });
+            } else if (entry.isFile() && nameLower.endsWith('.log')) {
+                logFilesInCurrent.push(entry.name);
+            }
+        }
+
+        // Sort: Pd Info & machine subfolders (a1..b2) & folders with .log files first, then alphabetical
+        directories.sort((a, b) => {
+            if (a.isPdInfo !== b.isPdInfo) return a.isPdInfo ? -1 : 1;
+            if (a.isMachineSubfolder !== b.isMachineSubfolder) return a.isMachineSubfolder ? -1 : 1;
+            if ((a.logCount > 0) !== (b.logCount > 0)) return a.logCount > 0 ? -1 : 1;
+            return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+        });
+
+        let parentPath = null;
+        if (targetPath.startsWith('\\\\')) {
+            const trimmedUnc = targetPath.replace(/\\+$/, '');
+            const parts = trimmedUnc.replace(/^\\\\+/, '').split('\\').filter(Boolean);
+            if (parts.length > 2) {
+                parentPath = '\\\\' + parts.slice(0, -1).join('\\');
+            }
+        } else {
+            const parsed = path.parse(targetPath);
+            const parent = path.dirname(targetPath);
+            if (parent && parent !== targetPath && targetPath !== parsed.root) {
+                parentPath = parent;
+            }
+        }
+
+        res.json({
+            success: true,
+            reachable: true,
+            currentPath: targetPath,
+            parentPath,
+            breadcrumbs: buildBreadcrumbs(targetPath),
+            directories,
+            logFilesCount: logFilesInCurrent.length,
+            sampleLogFiles: logFilesInCurrent.slice(0, 5),
+            detectedMachineSubfolders,
+            fallbackUsed,
+            fallbackMessage,
+            drives,
+            quickAccess
+        });
+    } catch (error) {
+        console.error('Browse directory error:', error);
+        res.status(500).json({ error: error.message || 'Gagal membuka direktori' });
+    }
+});
+
+// Create a new folder or auto-create a1..b2 subfolders inside current browsed directory
+router.post('/create-directory', isAuthenticated, isSuperAdmin, async (req, res) => {
+    try {
+        const { parentPath, folderName, createMachineSubfolders } = req.body || {};
+        const cleanParent = String(parentPath || '').trim();
+        if (!cleanParent || !fs.existsSync(cleanParent)) {
+            return res.status(400).json({ error: 'Folder induk tidak valid atau tidak ditemukan' });
+        }
+
+        if (createMachineSubfolders) {
+            const subIds = ['a1', 'a2', 'a3', 'b1', 'b2'];
+            const createdPaths = {};
+            for (const sub of subIds) {
+                const subPath = path.join(cleanParent, sub);
+                if (!fs.existsSync(subPath)) {
+                    fs.mkdirSync(subPath, { recursive: true });
+                }
+                createdPaths[sub.toUpperCase()] = subPath;
+            }
+            return res.json({
+                success: true,
+                message: 'Subfolder a1, a2, a3, b1, b2 berhasil disiapkan!',
+                currentPath: cleanParent,
+                createdPaths
+            });
+        }
+
+        const cleanName = String(folderName || '').trim().replace(/[<>:"/\\|?*]/g, '');
+        if (!cleanName) {
+            return res.status(400).json({ error: 'Nama folder baru wajib diisi' });
+        }
+
+        const newFolderPath = path.join(cleanParent, cleanName);
+        if (!fs.existsSync(newFolderPath)) {
+            fs.mkdirSync(newFolderPath, { recursive: true });
+        }
+
+        res.json({
+            success: true,
+            message: `Folder "${cleanName}" berhasil dibuat`,
+            newPath: newFolderPath
+        });
+    } catch (error) {
+        console.error('Create directory error:', error);
+        res.status(500).json({ error: error.message || 'Gagal membuat folder baru' });
+    }
+});
+
+// Open Native Windows Folder Picker Dialog (on Host PC)
+router.post('/pick-native-folder', isAuthenticated, canAccessMaterials, (req, res) => {
+    try {
+        const { initialPath, machineId } = req.body || {};
+        let startDir = String(initialPath || '').trim();
+        if (!startDir || !fs.existsSync(startDir)) {
+            const homeDir = os.homedir();
+            startDir = fs.existsSync(path.join(homeDir, 'Documents'))
+                ? path.join(homeDir, 'Documents')
+                : homeDir;
+        }
+
+        const escapedStartDir = startDir.replace(/'/g, "''");
+        const desc = machineId
+            ? `Pilih Folder Direktori Log Mesin SMT - Line ${String(machineId).replace(/'/g, '')} (Pd Info)`
+            : 'Pilih Folder Direktori Log Mesin SMT (Pd Info)';
+
+        const psScript = `
+            Add-Type -AssemblyName System.Windows.Forms
+            [System.Windows.Forms.Application]::EnableVisualStyles()
+            $topForm = New-Object System.Windows.Forms.Form
+            $topForm.TopMost = $true
+            $topForm.ShowInTaskbar = $false
+            $topForm.Width = 1
+            $topForm.Height = 1
+            $topForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+            $topForm.Opacity = 0
+            $topForm.Show()
+            $topForm.Activate()
+
+            $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+            $dialog.Description = '${desc}'
+            $dialog.ShowNewFolderButton = $true
+            if (Test-Path -LiteralPath '${escapedStartDir}') {
+                $dialog.SelectedPath = '${escapedStartDir}'
+            }
+
+            $result = $dialog.ShowDialog($topForm)
+            $topForm.Close()
+            $topForm.Dispose()
+
+            if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+                [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+                Write-Output $dialog.SelectedPath
+            }
+        `;
+
+        execFile(
+            'powershell.exe',
+            ['-NoProfile', '-Sta', '-ExecutionPolicy', 'Bypass', '-Command', psScript],
+            { timeout: 120000, windowsHide: false },
+            (error, stdout, stderr) => {
+                if (error) {
+                    console.error('Native folder picker error:', error, stderr);
+                    return res.status(500).json({ error: 'Gagal membuka dialog Windows Explorer' });
+                }
+                const selectedPath = String(stdout || '').trim();
+                if (!selectedPath) {
+                    return res.json({
+                        success: true,
+                        cancelled: true,
+                        selectedPath: ''
+                    });
+                }
+                return res.json({
+                    success: true,
+                    cancelled: false,
+                    selectedPath
+                });
+            }
+        );
+    } catch (error) {
+        console.error('Pick native folder error:', error);
+        res.status(500).json({ error: error.message || 'Gagal membuka dialog pilih folder' });
+    }
+});
+
 module.exports = router;

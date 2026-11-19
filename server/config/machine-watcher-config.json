@@ -11,7 +11,7 @@
       "brand": "Hanwha",
       "ip": "192.168.91.165",
       "shareFolder": "Pd Info",
-      "path": "C:\\Users\\Rama-Notebook\\Documents\\Adid\\Pd Info\\a1",
+      "path": "C:\\Users\\hexing\\Documents\\Adit\\Project\\SMT Material Control\\Pd\\a1",
       "enabled": true
     },
     {
@@ -20,7 +20,7 @@
       "brand": "Samsung",
       "ip": "192.168.1.102",
       "shareFolder": "Pd Info",
-      "path": "C:\\Users\\Rama-Notebook\\Documents\\Adid\\Pd Info\\a2",
+      "path": "C:\\Users\\hexing\\Documents\\Adit\\Project\\SMT Material Control\\Pd\\a2",
       "enabled": true
     },
     {
@@ -38,7 +38,7 @@
       "brand": "Samsung",
       "ip": "192.168.91.165",
       "shareFolder": "Pd Info",
-      "path": "C:\\Users\\Rama-Notebook\\Documents\\Adid\\Pd Info\\b1",
+      "path": "C:\\Users\\hexing\\Documents\\Adit\\Project\\SMT Material Control\\Pd\\b1",
       "enabled": true
     },
     {
@@ -47,7 +47,7 @@
       "brand": "Samsung",
       "ip": "192.168.1.105",
       "shareFolder": "Pd Info",
-      "path": "C:\\Users\\Rama-Notebook\\Documents\\Adid\\Pd Info\\b2",
+      "path": "C:\\Users\\hexing\\Documents\\Adit\\Project\\SMT Material Control\\Pd\\b2",
       "enabled": true
     }
   ]

@@ -334,7 +334,7 @@
         <!-- Main Content Area -->
         <div id="mainContent" class="flex-1 flex flex-col min-w-0 overflow-y-auto">
             <!-- Top Navbar -->
-            <header class="h-16 border-b border-slate-200 bg-white px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 shrink-0">
+            <header class="h-16 border-b border-slate-200 bg-white px-4 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-30 shrink-0">
                 <div class="flex items-center gap-3">
                     <button id="toggleBtn" onclick="toggleSidebar()" class="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition" title="Toggle Sidebar">
                         <i data-lucide="panel-left" class="w-4 h-4"></i>
@@ -374,7 +374,7 @@
                 </div>
             </header>
 
-            <main class="p-4 sm:p-6 space-y-6 flex-1 max-w-7xl">
+            <main class="w-full max-w-none p-4 sm:p-6 lg:p-8 space-y-6 flex-1">
                 <!-- Page Title & Header Action -->
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
@@ -425,6 +425,10 @@
                                 <span>Pengaturan IP Jaringan &amp; Folder 5 PC Mesin:</span>
                             </div>
                             <div class="flex items-center gap-2 flex-wrap">
+                                <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50/70 hover:bg-blue-100/80 text-blue-800 text-xs font-medium transition cursor-pointer" onclick="openBrowseDirectoryModal('ALL')" title="Pilih folder induk Pd Info untuk otomatis mengisi subfolder a1, a2, a3, b1, b2 pada ke-5 mesin">
+                                    <i data-lucide="folder-search" class="w-3.5 h-3.5 text-blue-700"></i>
+                                    <span>Browse Folder Induk (5 Mesin)</span>
+                                </button>
                                 <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition cursor-pointer" onclick="saveAllMachinesConfig()">
                                     <i data-lucide="save" class="w-3.5 h-3.5"></i>
                                     <span>Simpan Konfigurasi IP</span>
@@ -904,6 +908,189 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal Browse & Pilih Direktori Folder -->
+    <div id="browseDirectoryModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 680px;">
+            <div class="modal-header">
+                <div class="flex items-center gap-2.5">
+                    <i data-lucide="folder-open" class="w-4 h-4 text-amber-300"></i>
+                    <div>
+                        <h3 class="text-sm font-bold leading-tight" id="browseModalTitle">Browse &amp; Pilih Direktori Folder</h3>
+                        <p class="text-[11px] text-slate-300 font-normal mt-0.5" id="browseModalSubtitle">Pilih folder direktori log mesin SMT (Pd Info)</p>
+                    </div>
+                </div>
+                <button type="button" class="modal-close-btn" onclick="closeBrowseDirectoryModal()">&times;</button>
+            </div>
+
+            <div class="modal-body space-y-3.5" style="padding: 18px 20px;">
+                <!-- Top Toolbar: Quick Access Drives/Folders & Native Windows Explorer Picker -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
+                    <div class="flex items-center gap-1.5 flex-wrap" id="browseQuickAccessBar">
+                        <!-- Populated dynamically with Drives (C:, D:) and Quick Shortcuts (Documents, Desktop, Home, LAN) -->
+                    </div>
+                    <button
+                        type="button"
+                        id="nativePickerBtn"
+                        onclick="openNativeWindowsFolderPicker()"
+                        class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-800 text-xs font-semibold transition cursor-pointer shadow-2xs"
+                        title="Buka jendela pilih folder bawaan Windows Explorer"
+                    >
+                        <span>🪟</span>
+                        <span>Buka Windows Explorer</span>
+                    </button>
+                </div>
+
+                <!-- Address Bar & Navigation Controls -->
+                <div class="flex items-center gap-1.5">
+                    <button
+                        type="button"
+                        id="browseUpBtn"
+                        onclick="browseParentDirectory()"
+                        class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition cursor-pointer inline-flex items-center gap-1 shrink-0"
+                        title="Naik ke folder induk (Up)"
+                    >
+                        <span>⬆️</span>
+                        <span class="hidden sm:inline">Naik</span>
+                    </button>
+                    <button
+                        type="button"
+                        onclick="refreshCurrentBrowseDirectory()"
+                        class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition cursor-pointer shrink-0"
+                        title="Segarkan daftar folder"
+                    >
+                        🔄
+                    </button>
+                    <div class="relative flex-1">
+                        <input
+                            type="text"
+                            id="browsePathAddressInput"
+                            class="w-full h-8 px-2.5 text-xs font-mono border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#091540]"
+                            placeholder="Ketik atau tempel path folder (misal: C:\Users\...\Pd Info atau \\192.168.1.101\Pd Info)"
+                            onkeydown="if(event.key === 'Enter'){ event.preventDefault(); navigateToTypedBrowsePath(); }"
+                        >
+                    </div>
+                    <button
+                        type="button"
+                        onclick="navigateToTypedBrowsePath()"
+                        class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold transition cursor-pointer shrink-0"
+                    >
+                        Buka
+                    </button>
+                    <button
+                        type="button"
+                        onclick="toggleNewFolderBox()"
+                        class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition cursor-pointer shrink-0"
+                        title="Buat Folder Baru di sini"
+                    >
+                        ➕ Folder
+                    </button>
+                </div>
+
+                <!-- New Folder Inline Bar (Hidden by default) -->
+                <div id="browseNewFolderBox" class="hidden p-2.5 rounded-lg bg-slate-100 border border-slate-200 flex items-center gap-2 flex-wrap">
+                    <input
+                        type="text"
+                        id="browseNewFolderNameInput"
+                        class="flex-1 min-w-[160px] h-8 px-2.5 text-xs border border-slate-300 rounded-md bg-white text-slate-900"
+                        placeholder="Nama folder baru (misal: Pd Info atau a1)"
+                        onkeydown="if(event.key === 'Enter'){ event.preventDefault(); createNewFolderInBrowser(); }"
+                    >
+                    <button
+                        type="button"
+                        onclick="createNewFolderInBrowser()"
+                        class="px-3 py-1.5 rounded-md bg-[#091540] hover:bg-[#142563] text-white text-xs font-semibold cursor-pointer"
+                    >
+                        Buat Folder
+                    </button>
+                    <button
+                        type="button"
+                        onclick="createMachineSubfoldersInBrowser()"
+                        class="px-3 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold cursor-pointer"
+                        title="Buat otomatis 5 subfolder: a1, a2, a3, b1, b2 di dalam folder ini"
+                    >
+                        ⚡ Buat Subfolder a1..b2
+                    </button>
+                    <button
+                        type="button"
+                        onclick="toggleNewFolderBox(false)"
+                        class="px-2 py-1.5 text-xs text-slate-500 hover:text-slate-800 cursor-pointer"
+                    >
+                        Batal
+                    </button>
+                </div>
+
+                <!-- Clickable Breadcrumb Trail -->
+                <div id="browseBreadcrumbs" class="flex items-center gap-1 flex-wrap text-xs bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 overflow-x-auto">
+                    <!-- Populated dynamically -->
+                </div>
+
+                <!-- Current Directory Status & Smart Subfolder Detection Banner -->
+                <div id="browseCurrentDirBanner" class="px-3 py-2 rounded-lg border border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                    <div id="browseCurrentDirInfo" class="text-slate-700">
+                        Memuat informasi folder...
+                    </div>
+                    <div id="browseSmartActionContainer"></div>
+                </div>
+
+                <!-- Folder Listing Box -->
+                <div class="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                    <div class="bg-slate-50 px-3.5 py-2 border-b border-slate-200 flex items-center justify-between text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                        <span>Daftar Subfolder (Klik folder untuk membuka)</span>
+                        <span id="browseSubfolderCount">0 Folder</span>
+                    </div>
+                    <div id="browseDirectoryList" class="divide-y divide-slate-100 max-h-64 overflow-y-auto">
+                        <div class="p-8 text-center text-slate-400 text-xs">
+                            Memuat daftar folder...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selected Folder Preview & Footer Actions -->
+                <div class="pt-2 border-t border-slate-200 space-y-2.5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-blue-50/60 border border-blue-200 rounded-lg px-3 py-2">
+                        <div class="min-w-0 flex-1">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-blue-700">Folder yang Akan Dipilih:</div>
+                            <div id="browseSelectedPathPreview" class="text-xs font-mono font-bold text-slate-900 break-all mt-0.5">-</div>
+                        </div>
+                        <label class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 cursor-pointer shrink-0 select-none">
+                            <input type="checkbox" id="browseAutoSaveCheckbox" checked class="rounded border-slate-300 text-[#091540] focus:ring-[#091540]">
+                            <span>Langsung simpan konfigurasi</span>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-between gap-2">
+                        <button
+                            type="button"
+                            id="browseApplyAllMachinesBtn"
+                            onclick="applyCurrentFolderToAllMachines()"
+                            class="hidden px-3 py-2 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold transition cursor-pointer"
+                            title="Terapkan folder ini beserta subfolder a1, a2, a3, b1, b2 ke seluruh 5 mesin sekaligus"
+                        >
+                            ⚡ Isi Otomatis ke 5 Mesin (a1..b2)
+                        </button>
+                        <div class="flex items-center gap-2 ml-auto">
+                            <button
+                                type="button"
+                                class="px-3.5 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium transition cursor-pointer"
+                                onclick="closeBrowseDirectoryModal()"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                id="browseConfirmSelectBtn"
+                                onclick="confirmSelectBrowsedDirectory()"
+                                class="px-4 py-2 rounded-lg bg-[#091540] hover:bg-[#142563] text-white text-xs font-semibold transition cursor-pointer inline-flex items-center gap-1.5 shadow-xs"
+                            >
+                                <span>✅ Pilih Folder Ini</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

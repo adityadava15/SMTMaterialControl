@@ -131,7 +131,7 @@
         <!-- Main Content Area -->
         <div id="mainContent" class="flex-1 flex flex-col min-w-0 overflow-y-auto">
             <!-- Top Navbar -->
-            <header class="h-16 border-b border-slate-200 bg-white px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 shrink-0">
+            <header class="h-16 border-b border-slate-200 bg-white px-4 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-30 shrink-0">
                 <div class="flex items-center gap-3">
                     <button id="toggleBtn" onclick="toggleSidebar()" class="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition" title="Toggle Sidebar">
                         <i data-lucide="panel-left" class="w-4 h-4"></i>
@@ -172,7 +172,7 @@
             </header>
 
             <!-- Main Body -->
-            <main class="p-4 sm:p-6 space-y-6 flex-1 max-w-6xl">
+            <main class="w-full max-w-none p-4 sm:p-6 lg:p-8 space-y-6 flex-1">
                 <!-- Page Title -->
                 <div>
                     <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Output Stok Material (Penggunaan)</h1>
@@ -182,8 +182,8 @@
                 <!-- Scanner Section -->
                 <div class="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
                     <div class="bg-gradient-to-br from-[#091540] to-[#142563] text-white p-4 sm:p-5 rounded-xl shadow-sm space-y-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
-                            <div class="sm:col-span-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 items-end">
+                            <div class="lg:col-span-3">
                                 <label for="outputProductType" class="block text-xs font-semibold text-slate-200 mb-1.5">Type Produk *</label>
                                 <select id="outputProductType" required
                                     class="w-full h-11 px-3 text-sm font-medium rounded-lg border-2 border-amber-400 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400">
@@ -195,7 +195,7 @@
                                 </select>
                             </div>
 
-                            <div class="sm:col-span-3">
+                            <div class="lg:col-span-3">
                                 <label for="outputOperator" class="block text-xs font-semibold text-slate-200 mb-1.5">Nama Operator *</label>
                                 <select id="outputOperator" required
                                     class="w-full h-11 px-3 text-sm font-medium rounded-lg border-2 border-amber-400 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400">
@@ -203,7 +203,7 @@
                                 </select>
                             </div>
 
-                            <div class="sm:col-span-3">
+                            <div class="lg:col-span-3">
                                 <label for="outputMachine" class="block text-xs font-semibold text-slate-200 mb-1.5">Lini / Mesin Tujuan</label>
                                 <select id="outputMachine"
                                     class="w-full h-11 px-3 text-sm font-medium rounded-lg border-2 border-white/20 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400">
@@ -220,7 +220,7 @@
                                 </select>
                             </div>
 
-                            <div class="sm:col-span-3">
+                            <div class="lg:col-span-3">
                                 <label for="scanInput" class="block text-xs font-semibold text-white mb-1.5 flex items-center gap-1.5">
                                     <i data-lucide="scan" class="w-3.5 h-3.5 text-amber-400"></i>
                                     <span>Scan QR Material *</span>
@@ -308,7 +308,7 @@
                     </div>
 
                     <!-- Table -->
-                    <div class="rounded-lg border border-slate-200 overflow-hidden">
+                    <div class="rounded-lg border border-slate-200 overflow-x-auto">
                         <table class="w-full text-xs text-left">
                             <thead class="bg-slate-50/75 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
                                 <tr>

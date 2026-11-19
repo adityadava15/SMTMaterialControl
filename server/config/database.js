@@ -192,7 +192,7 @@ async function ensureSchemaExtensions() {
                 FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE CASCADE,
                 FOREIGN KEY (input_transaction_id) REFERENCES transactions(id) ON DELETE SET NULL,
                 FOREIGN KEY (output_transaction_id) REFERENCES transactions(id) ON DELETE SET NULL
-            )
+            ) DEFAULT CHARSET=latin1
         `);
 
         const [rollsMatIdx] = await pool.query("SHOW INDEX FROM material_rolls WHERE Key_name = 'idx_material_rolls_mat'");
@@ -232,13 +232,13 @@ async function ensureSchemaExtensions() {
 
                     if (outTx.length > 0) {
                         await pool.query(`
-                            INSERT INTO material_rolls (material_id, rid, quantity, status, input_transaction_id, output_transaction_id, created_at, output_at)
-                            VALUES (?, ?, ?, 'OUTPUT', ?, ?, ?, ?)
-                        `, [tx.material_id, cleanRid, tx.quantity, tx.id, outTx[0].id, tx.created_at, outTx[0].created_at]);
+                            INSERT INTO material_rolls (material_id, rid, quantity, status, input_transaction_id, output_transaction_id, created_at)
+                            VALUES (?, ?, ?, 'consumed', ?, ?, ?)
+                        `, [tx.material_id, cleanRid, tx.quantity, tx.id, outTx[0].id, tx.created_at]);
                     } else {
                         await pool.query(`
                             INSERT INTO material_rolls (material_id, rid, quantity, status, input_transaction_id, created_at)
-                            VALUES (?, ?, ?, 'IN_STOCK', ?, ?)
+                            VALUES (?, ?, ?, 'active', ?, ?)
                         `, [tx.material_id, cleanRid, tx.quantity, tx.id, tx.created_at]);
                         seenActiveRids.add(cleanRid);
                     }

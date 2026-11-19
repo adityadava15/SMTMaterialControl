@@ -393,7 +393,7 @@ function renderHistory() {
         <tr>
             <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">
                 <div style="font-weight: 600; font-family: 'Courier New', monospace;">${item.id}</div>
-                <div style="font-size: 12px; color: var(--light-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;">
+                <div style="font-size: 12px; color: var(--light-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 480px;">
                     ${item.name}
                 </div>
             </td>
