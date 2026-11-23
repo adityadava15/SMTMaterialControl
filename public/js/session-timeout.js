@@ -12,6 +12,8 @@ let warningShown = false;
 // Track user activity
 function resetActivityTimer() {
     lastActivityTime = Date.now();
+    if (!warningShown) return;
+
     warningShown = false;
 
     // Remove warning if exists

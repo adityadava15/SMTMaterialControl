@@ -54,33 +54,24 @@ function applyRoleRestrictions(user) {
  * - RID: RIGHT(TRIM(B56), 5) -> 5 digit paling belakang dari barcode roll unik
  */
 function parseQRCode(scannedText) {
-    if (!scannedText || scannedText.trim() === '') {
-        return null;
-    }
+    if (!scannedText) return null;
 
     const text = scannedText.trim();
-    let materialId = null;
-    let quantity = null;
-    let rid = null;
+    if (!text) return null;
 
     try {
-        // Extract Material ID
-        materialId = extractMaterialID(text);
+        const tokens = text.split(/\s+/);
+        const materialId = extractMaterialID(text, tokens);
+        const quantity = extractQuantity(text, tokens);
+        const rid = extractRID(text, tokens);
 
-        // Extract Quantity
-        quantity = extractQuantity(text);
-
-        // Extract RID (Roll ID - 5 digit belakang)
-        rid = extractRID(text);
-
-        // Validate results
-        if (!materialId || materialId === '' || materialId === 'null') {
+        if (!materialId || materialId === 'null') {
             return null;
         }
 
         return {
             id: materialId,
-            qty: quantity && quantity !== 'null' && quantity !== '' ? parseInt(quantity) : null,
+            qty: quantity && quantity !== 'null' ? parseInt(quantity, 10) : null,
             rid: rid
         };
     } catch (error) {
@@ -89,42 +80,34 @@ function parseQRCode(scannedText) {
     }
 }
 
-function extractMaterialID(text) {
-    const start3 = text.substring(0, 3);
-
-    if (start3 === 'Z01') {
-        // Z01 format: split by space and get token at position 5
-        const tokens = text.split(/\s+/);
+function extractMaterialID(text, tokens) {
+    if (text.startsWith('Z01')) {
         if (tokens.length > 5 && tokens[5] !== 'null') {
             return tokens[5].trim();
         }
         return null;
-    } else {
-        // Non-Z01 format: try to find "&" separator
-        const ampIndex = text.indexOf('&');
-        if (ampIndex > 0) {
-            return text.substring(0, ampIndex).trim();
-        }
-        return text.trim();
     }
+
+    const ampIndex = text.indexOf('&');
+    if (ampIndex > 0) {
+        return text.substring(0, ampIndex).trim();
+    }
+    return text;
 }
 
-function extractQuantity(text) {
-    const start2 = text.substring(0, 2);
-
-    if (start2 === 'Z0') {
-        const tokens = text.split(/\s+/);
+function extractQuantity(text, tokens) {
+    if (text.startsWith('Z0')) {
         if (tokens.length > 13 && tokens[13] !== 'null') {
             return tokens[13].trim();
         }
         return null;
-    } else {
-        const parts = text.split('&');
-        if (parts.length >= 2) {
-            return parts[1].trim();
-        }
-        return null;
     }
+
+    const parts = text.split('&');
+    if (parts.length >= 2) {
+        return parts[1].trim();
+    }
+    return null;
 }
 
 /**
@@ -132,13 +115,11 @@ function extractQuantity(text) {
  * e.g. S0086*********1051802606110002504 -> 02504
  *      S0086*********102621260312000022 -> 00022
  */
-function extractRID(text) {
+function extractRID(text, tokens) {
     if (!text || typeof text !== 'string') return null;
-    const trimmed = text.trim();
-    if (!trimmed) return null;
 
-    if (trimmed.includes('&')) {
-        const parts = trimmed.split('&');
+    if (text.includes('&')) {
+        const parts = text.split('&');
         if (parts.length >= 3 && parts[2].trim()) {
             const p3 = parts[2].trim();
             const matchP3 = p3.match(/(\d{5})$/);
@@ -146,7 +127,6 @@ function extractRID(text) {
         }
     }
 
-    const tokens = trimmed.split(/\s+/);
     const lastToken = tokens[tokens.length - 1];
     const match = lastToken.match(/(\d{5})$/);
     if (match) return match[1];
@@ -160,62 +140,106 @@ function extractRID(text) {
     return null;
 }
 
-// ========== IN-MEMORY CACHE ==========
-const materialNameCache = new Map(); // materialId -> name string
+// ========== SCAN QUEUE & STATE ==========
+let qrScanTimeout = null;
+let resetPreviewTimeout = null;
+let scanSequence = 0;
+const submitQueue = [];
+let isSubmitting = false;
 
 // ========== EVENT HANDLERS ==========
 
+// Instant 0ms trigger when scanner sends Enter (or Tab) termination key
+qrScanInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || (e.key === 'Tab' && qrScanInput.value.trim().length > 5)) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (qrScanTimeout) {
+            clearTimeout(qrScanTimeout);
+            qrScanTimeout = null;
+        }
+
+        const scannedText = qrScanInput.value;
+        if (scannedText && scannedText.trim().length > 5) {
+            qrScanInput.value = '';
+            processQRCode(scannedText);
+        }
+    }
+});
+
+// Immediate 0ms trigger on paste
+qrScanInput.addEventListener('paste', () => {
+    if (qrScanTimeout) {
+        clearTimeout(qrScanTimeout);
+        qrScanTimeout = null;
+    }
+    setTimeout(() => {
+        const scannedText = qrScanInput.value;
+        if (scannedText && scannedText.trim().length > 5) {
+            qrScanInput.value = '';
+            processQRCode(scannedText);
+        }
+    }, 0);
+});
+
+// Fallback debounce (50ms) for scanners configured without Enter/Tab suffix
 qrScanInput.addEventListener('input', handleQRScan);
-qrScanInput.addEventListener('change', handleQRScan);
 
-let qrScanTimeout = null;
-
-function handleQRScan(e) {
-    const scannedText = e.target.value;
-
+function handleQRScan() {
     if (qrScanTimeout) {
         clearTimeout(qrScanTimeout);
     }
 
-    // Reduced from 300ms to 80ms — barcode scanners finish sending in <50ms
+    if (qrScanInput.value.length <= 5) {
+        return;
+    }
+
     qrScanTimeout = setTimeout(() => {
-        if (scannedText && scannedText.length > 5) {
+        qrScanTimeout = null;
+        const scannedText = qrScanInput.value;
+        if (scannedText && scannedText.trim().length > 5) {
+            qrScanInput.value = '';
             processQRCode(scannedText);
         }
-    }, 80);
+    }, 50);
 }
 
 function processQRCode(scannedText) {
     const parsed = parseQRCode(scannedText);
 
     if (parsed && parsed.id) {
-        // Successfully parsed
+        scanSequence += 1;
+        if (resetPreviewTimeout) {
+            clearTimeout(resetPreviewTimeout);
+            resetPreviewTimeout = null;
+        }
+
+        const multiplier = Math.max(1, parseInt(multiplierInput.value, 10) || 1);
+        const totalQty = parsed.qty && parsed.qty > 0 ? parsed.qty * multiplier : null;
+
         materialIdInput.value = parsed.id;
         if (materialRidInput) {
             materialRidInput.value = parsed.rid || '-';
         }
+        materialQuantityInput.value = totalQty || '';
 
-        if (parsed.qty && parsed.qty > 0) {
-            const multiplier = parseInt(multiplierInput.value) || 1;
-            const totalQty = parsed.qty * multiplier;
-            materialQuantityInput.value = totalQty;
-
-            if (multiplier > 1) {
-                showToast(`Info: ${parsed.qty} x ${multiplier} roll = ${totalQty} pcs`, 'info');
-            }
-        }
-
-        // Clear scan input immediately
+        // Keep scanner box ready immediately for the next roll
         qrScanInput.value = '';
+        qrScanInput.focus();
 
-        const ridNotice = parsed.rid ? ` (RID: ${parsed.rid})` : '';
-        showToast(`QR Code berhasil di-scan${ridNotice}! Memproses...`, 'success');
-
-        // AUTO SUBMIT — reduced from 500ms to 100ms
-        setTimeout(() => {
-            submitBtn.click();
-        }, 100);
+        if (totalQty && totalQty > 0) {
+            enqueueSubmission({
+                id: parsed.id,
+                quantity: totalQty,
+                rid: parsed.rid || null,
+                seq: scanSequence
+            });
+        } else {
+            showError('Quantity tidak terbaca dari QR code');
+        }
     } else {
+        qrScanInput.value = '';
         showQRErrorModal();
     }
 }
@@ -232,13 +256,20 @@ function closeQRErrorModal() {
     qrScanInput.focus();
 }
 
+function clearPreviewFields() {
+    materialIdInput.value = '';
+    if (materialRidInput) materialRidInput.value = '';
+    materialQuantityInput.value = '';
+}
+
 function resetForm() {
-    // Save multiplier value
     const currentMultiplier = multiplierInput.value;
+    if (resetPreviewTimeout) {
+        clearTimeout(resetPreviewTimeout);
+        resetPreviewTimeout = null;
+    }
 
     form.reset();
-
-    // Restore multiplier
     multiplierInput.value = currentMultiplier;
 
     document.getElementById('successMessage').style.display = 'none';
@@ -246,13 +277,13 @@ function resetForm() {
     qrScanInput.focus();
 }
 
-// ========== FORM SUBMISSION ==========
+// ========== FORM SUBMISSION (NON-BLOCKING FIFO QUEUE) ==========
 
-form.addEventListener('submit', async (e) => {
+form.addEventListener('submit', (e) => {
     e.preventDefault();
 
     const id = materialIdInput.value.trim();
-    const quantity = parseInt(materialQuantityInput.value);
+    const quantity = parseInt(materialQuantityInput.value, 10);
     const rid = materialRidInput && materialRidInput.value && materialRidInput.value !== '-'
         ? materialRidInput.value.trim()
         : null;
@@ -262,85 +293,88 @@ form.addEventListener('submit', async (e) => {
         return;
     }
 
-    submitBtn.disabled = true;
-    submitBtn.textContent = '\u23F3 Memproses...';
+    scanSequence += 1;
+    enqueueSubmission({ id, quantity, rid, seq: scanSequence });
+});
 
-    try {
-        // 1. Find name — check cache first, then fetch both sources in parallel
-        let name = '';
-
-        if (materialNameCache.has(id)) {
-            name = materialNameCache.get(id);
-        } else {
-            const [materialRes, catalogRes] = await Promise.all([
-                fetch(`/api/materials/${id}`).catch(() => null),
-                fetch(`/api/material-catalog/${id}`).catch(() => null)
-            ]);
-
-            if (materialRes && materialRes.ok) {
-                const d = await materialRes.json().catch(() => null);
-                if (d && d.data && d.data.name) name = d.data.name;
-            }
-
-            if (!name && catalogRes && catalogRes.ok) {
-                const d = await catalogRes.json().catch(() => null);
-                if (d && d.data && (d.data.specification || d.data.material_name)) name = d.data.specification || d.data.material_name;
-            }
-
-            if (name) materialNameCache.set(id, name);
-        }
-
-        if (!name) {
-            showError('Material ID belum terdaftar di master data');
-            return;
-        }
-
-        // 2. Submit data
-        const response = await fetch('/api/materials', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                id,
-                quantity,
-                rid
-            })
-        });
-
-        const data = await response.json();
-
-        if (response.ok && data.success) {
-            const savedName = data.data && data.data.name ? data.data.name : name;
-            const ridText = rid ? ` [RID: ${rid}]` : '';
-            showSuccess(`Berhasil! ${savedName}${ridText} (+${quantity})`);
-            showToast('Material berhasil di-input!', 'success');
-
-            // Add to history
-            addToHistory(id, savedName, quantity, rid);
-
-            // Auto reset form but KEEP multiplier
-            setTimeout(() => {
-                resetForm();
-            }, 1000);
-        } else {
-            const errorMsg = data.error || 'Gagal menyimpan material';
-            showError(errorMsg);
-            showToast(errorMsg, 'error');
-            if (qrScanInput) {
-                qrScanInput.value = '';
-                qrScanInput.focus();
-            }
-        }
-
-    } catch (error) {
-        console.error('Error submitting material:', error);
-        showError('Terjadi kesalahan koneksi');
-    } finally {
+function updateSubmitButtonState() {
+    if (isSubmitting) {
+        submitBtn.disabled = true;
+        const pending = submitQueue.length;
+        submitBtn.textContent = pending > 0
+            ? `\u23F3 Memproses (${pending + 1})...`
+            : '\u23F3 Memproses...';
+    } else {
         submitBtn.disabled = false;
         submitBtn.textContent = '\u2705 Input Material';
     }
-});
+}
+
+function enqueueSubmission(item) {
+    submitQueue.push(item);
+    updateSubmitButtonState();
+    if (!isSubmitting) {
+        processSubmitQueue();
+    }
+}
+
+async function processSubmitQueue() {
+    if (isSubmitting) return;
+    isSubmitting = true;
+    updateSubmitButtonState();
+
+    try {
+        while (submitQueue.length > 0) {
+            const { id, quantity, rid, seq } = submitQueue.shift();
+            updateSubmitButtonState();
+
+            try {
+                // Single round-trip: backend validates master catalog, RID uniqueness, and saves atomically
+                const response = await fetch('/api/materials', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ id, quantity, rid })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    const savedName = (data.data && data.data.name) || id;
+                    const ridText = rid ? ` [RID: ${rid}]` : '';
+                    showSuccess(`Berhasil! ${savedName}${ridText} (+${quantity})`);
+                    showToast(`Berhasil input ${id}${ridText} (+${quantity})`, 'success', 2000);
+
+                    addToHistory(id, savedName, quantity, rid);
+
+                    // Clear preview fields quickly only if no newer scan arrived
+                    if (submitQueue.length === 0 && seq === scanSequence) {
+                        resetPreviewTimeout = setTimeout(() => {
+                            if (submitQueue.length === 0 && seq === scanSequence) {
+                                clearPreviewFields();
+                            }
+                        }, 350);
+                    }
+                } else {
+                    const errorMsg = data.error || 'Gagal menyimpan material';
+                    showError(errorMsg);
+                    showToast(errorMsg, 'error');
+                }
+            } catch (error) {
+                console.error('Error submitting material:', error);
+                showError('Terjadi kesalahan koneksi');
+                showToast('Terjadi kesalahan koneksi', 'error');
+            }
+        }
+    } finally {
+        isSubmitting = false;
+        updateSubmitButtonState();
+        if (document.activeElement !== multiplierInput) {
+            qrScanInput.focus();
+        }
+    }
+}
 
 function showSuccess(message) {
     const successMessage = document.getElementById('successMessage');
@@ -358,6 +392,32 @@ function showError(message) {
 
 // ========== HISTORY FUNCTIONS ==========
 
+function buildHistoryRow(item) {
+    const safeId = escapeHtml(item.id);
+    const safeName = escapeHtml(item.name);
+    const safeRid = item.rid && item.rid !== '-' ? escapeHtml(item.rid) : null;
+
+    return `
+        <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">
+                <div style="font-weight: 600; font-family: 'Courier New', monospace;">${safeId}</div>
+                <div style="font-size: 12px; color: var(--light-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 480px;">
+                    ${safeName}
+                </div>
+            </td>
+            <td style="padding: 8px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+                ${safeRid ? `<span style="background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace;">${safeRid}</span>` : '<span style="color: var(--light-text);">-</span>'}
+            </td>
+            <td style="padding: 8px; text-align: right; border-bottom: 1px solid #e5e7eb; font-weight: bold; color: var(--success-color);">
+                +${item.qty}
+            </td>
+            <td style="padding: 8px; text-align: center; border-bottom: 1px solid #e5e7eb; font-size: 12px; color: var(--light-text);">
+                ${formatTime(item.timestamp)}
+            </td>
+        </tr>
+    `;
+}
+
 function addToHistory(id, name, qty, rid = null) {
     const entry = {
         id,
@@ -367,11 +427,14 @@ function addToHistory(id, name, qty, rid = null) {
         timestamp: new Date()
     };
 
-    // Add to beginning of array
     inputHistory.unshift(entry);
 
-    // Update UI
-    renderHistory();
+    if (inputHistory.length === 1) {
+        renderHistory();
+    } else {
+        clearHistoryBtn.style.visibility = 'visible';
+        historyTableBody.insertAdjacentHTML('afterbegin', buildHistoryRow(entry));
+    }
 }
 
 function renderHistory() {
@@ -388,26 +451,7 @@ function renderHistory() {
     }
 
     clearHistoryBtn.style.visibility = 'visible';
-
-    historyTableBody.innerHTML = inputHistory.map(item => `
-        <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">
-                <div style="font-weight: 600; font-family: 'Courier New', monospace;">${item.id}</div>
-                <div style="font-size: 12px; color: var(--light-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 480px;">
-                    ${item.name}
-                </div>
-            </td>
-            <td style="padding: 8px; text-align: center; border-bottom: 1px solid #e5e7eb;">
-                ${item.rid && item.rid !== '-' ? `<span style="background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace;">${item.rid}</span>` : '<span style="color: var(--light-text);">-</span>'}
-            </td>
-            <td style="padding: 8px; text-align: right; border-bottom: 1px solid #e5e7eb; font-weight: bold; color: var(--success-color);">
-                +${item.qty}
-            </td>
-            <td style="padding: 8px; text-align: center; border-bottom: 1px solid #e5e7eb; font-size: 12px; color: var(--light-text);">
-                ${formatTime(item.timestamp)}
-            </td>
-        </tr>
-    `).join('');
+    historyTableBody.innerHTML = inputHistory.map(buildHistoryRow).join('');
 }
 
 function clearInputHistory() {

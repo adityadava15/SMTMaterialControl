@@ -1,170 +1,178 @@
 <!DOCTYPE html>
-<html lang="id" class="h-full bg-slate-50">
+<html lang="id">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Masuk - SMT Material Control System</title>
     <link rel="icon" href="/img/SMT.png?v=5" type="image/png">
-
     <!-- Inter Font (Offline) -->
     <link rel="stylesheet" href="/libs/inter-font.css">
-
-    <!-- Tailwind CSS (Offline) -->
-    <script src="/libs/tailwind.min.js"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        brand: {
-                            DEFAULT: '#091540',
-                            hover: '#142563',
-                            active: '#060e2a',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-
-    <style>
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        /* Compatibility classes for auth.js */
-        .alert {
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 500;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .alert-error {
-            background-color: #fef2f2;
-            color: #991b1b;
-            border: 1px solid #fecaca;
-        }
-
-        .alert-success {
-            background-color: #f0fdf4;
-            color: #166534;
-            border: 1px solid #bbf7d0;
-        }
-
-        /* Eye toggle button styling */
-        .password-toggle-btn {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: #94a3b8;
-            padding: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: color 0.15s ease;
-        }
-
-        .password-toggle-btn:hover {
-            color: #091540;
-        }
-    </style>
+    <link rel="stylesheet" href="/css/login-wave.css">
 </head>
 
-<body class="h-full bg-slate-50 flex items-center justify-center p-4 sm:p-6 text-slate-900">
+<body>
+    <main class="wave-login-screen">
+        <!-- Left Organic Wave with Color-Corrected SMT Production Line Photo -->
+        <div class="wave-landscape-container" aria-hidden="true">
+            <svg class="wave-landscape-svg" viewBox="0 0 746 810" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <clipPath id="smtWaveClip">
+                        <path d="M 0 0 L 568 0 C 648 56 746 138 746 222 C 746 320 536 445 536 548 C 536 582 558 596 556 628 C 553 686 442 758 336 810 L 0 810 L 0 0 Z" />
+                    </clipPath>
+                    <linearGradient id="smtWaveFallbackGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#060E2B" />
+                        <stop offset="55%" stop-color="#091540" />
+                        <stop offset="100%" stop-color="#142563" />
+                    </linearGradient>
+                    <!-- Color Correction Filter matching Figma -->
+                    <filter id="smtNavyColorGrade" color-interpolation-filters="sRGB">
+                        <feColorMatrix type="saturate" values="0.78" result="desat" />
+                        <feComponentTransfer in="desat" result="contrast">
+                            <feFuncR type="linear" slope="1.06" intercept="-0.04" />
+                            <feFuncG type="linear" slope="1.12" intercept="-0.03" />
+                            <feFuncB type="linear" slope="1.24" intercept="0.02" />
+                        </feComponentTransfer>
+                    </filter>
+                </defs>
 
-    <!-- Background Decoration Grid Pattern -->
-    <div class="fixed inset-0 pointer-events-none opacity-40 [background-image:radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]"></div>
-
-    <!-- Login Card (Shadcn Card Component Style) -->
-    <div class="relative w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
-
-        <!-- Header -->
-        <div class="flex flex-col items-center text-center space-y-3">
-            <div class="py-2.5 px-5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shadow-2xs">
-                <img src="/img/SMT.png" alt="SMT Logo" class="h-14 sm:h-16 w-auto object-contain">
-            </div>
-            <div>
-                <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">SMT Material Control</h1>
-                <p class="text-xs sm:text-sm text-slate-500 mt-1">Masuk untuk mengakses sistem inventori dan material</p>
-            </div>
+                <g clip-path="url(#smtWaveClip)">
+                    <rect x="0" y="0" width="746" height="810" fill="url(#smtWaveFallbackGrad)" />
+                    <image
+                        id="waveBgImage"
+                        href="/img/WhatsApp%20Image%202026-11-23%20at%2011.21.03.jpeg"
+                        x="-160"
+                        y="0"
+                        width="1080"
+                        height="810"
+                        preserveAspectRatio="xMidYMid slice"
+                        filter="url(#smtNavyColorGrade)"
+                        onerror="this.style.display='none'"
+                    />
+                    <!-- Soft-Light Navy Overlay (22%) -->
+                    <rect x="0" y="0" width="746" height="810" fill="#091540" fill-opacity="0.22" style="mix-blend-mode: soft-light;" />
+                    <!-- Normal Navy Theme Tint Overlay (12%) -->
+                    <rect x="0" y="0" width="746" height="810" fill="#091540" fill-opacity="0.12" />
+                </g>
+            </svg>
         </div>
 
-        <!-- Form -->
-        <form id="loginForm" class="space-y-4">
-            <!-- Username Input -->
-            <div class="space-y-1.5">
-                <label for="username" class="block text-xs font-semibold uppercase tracking-wider text-slate-600">
-                    Username
-                </label>
-                <input type="text" id="username" name="username"
-                    class="w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-200 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#091540] focus:border-transparent transition shadow-2xs"
-                    placeholder="Masukkan username" required autocomplete="username">
-            </div>
+        <!-- Decorative Wave Dot -->
+        <div class="decorative-wave-dot" aria-hidden="true"></div>
 
-            <!-- Password Input -->
-            <div class="space-y-1.5">
-                <div class="flex items-center justify-between">
-                    <label for="password" class="block text-xs font-semibold uppercase tracking-wider text-slate-600">
-                        Password
-                    </label>
-                </div>
-                <div class="relative w-full">
-                    <input type="password" id="password" name="password"
-                        class="w-full pl-3.5 pr-11 py-2.5 text-sm rounded-lg border border-slate-200 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#091540] focus:border-transparent transition shadow-2xs"
-                        placeholder="Masukkan password" required autocomplete="current-password">
-                    <button type="button" id="togglePassword" class="password-toggle-btn" aria-label="Tampilkan password">
-                        <!-- Eye Icon -->
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="eye-icon">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                            <circle cx="12" cy="12" r="3"></circle>
-                        </svg>
-                        <!-- Eye Off Icon -->
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="eye-off-icon" style="display: none;">
-                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                            <line x1="1" y1="1" x2="23" y2="23"></line>
-                        </svg>
-                    </button>
-                </div>
-            </div>
+        <!-- Abstract Background Accents behind Login Card -->
+        <svg class="abstract-accents-svg" viewBox="0 0 1440 810" preserveAspectRatio="xMidYMid slice" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="topWaveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#091540" stop-opacity="0.055" />
+                    <stop offset="100%" stop-color="#1E408A" stop-opacity="0.015" />
+                </linearGradient>
+                <linearGradient id="bottomBlobGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#091540" stop-opacity="0.05" />
+                    <stop offset="100%" stop-color="#1E408A" stop-opacity="0.015" />
+                </linearGradient>
+            </defs>
 
-            <!-- Error/Success Message Alert -->
-            <div id="errorMessage" class="alert alert-error" style="display: none;"></div>
+            <!-- 1. Top-Right Organic Wave -->
+            <path d="M 1110 0 C 1130 95 1215 130 1285 185 C 1355 240 1370 330 1440 360 L 1440 0 L 1110 0 Z" fill="url(#topWaveGrad)" />
 
-            <!-- Submit Button (#091540 Brand Color) -->
-            <button type="submit"
-                class="btn btn-primary w-full py-2.5 px-4 rounded-lg bg-[#091540] hover:bg-[#142563] active:bg-[#060e2a] text-white font-medium text-sm transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer">
-                <span>Masuk</span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                    <polyline points="12 5 19 12 12 19"></polyline>
-                </svg>
-            </button>
-        </form>
+            <!-- 2. Top-Right Contour Line -->
+            <path d="M 1065 0 C 1090 120 1190 160 1265 220 C 1340 280 1355 375 1440 410" fill="none" stroke="#091540" stroke-opacity="0.07" stroke-width="1.5" />
 
-        <!-- Footer -->
-        <div class="text-center text-[11px] text-slate-400">
-            SMT Material Control &bull; v1.0.0
+            <!-- 3. Bottom-Right Organic Shape -->
+            <path d="M 1175 615 C 1235 555 1335 570 1380 635 C 1425 700 1390 785 1310 810 C 1230 835 1135 795 1115 725 C 1095 655 1115 675 1175 615 Z" fill="url(#bottomBlobGrad)" />
+
+            <!-- 4. Floating Soft Circle behind top-left of Login Card -->
+            <circle cx="876" cy="136" r="52" fill="#091540" fill-opacity="0.04" />
+
+            <!-- 5. Abstract Ring Accent -->
+            <circle cx="773" cy="347" r="11" fill="none" stroke="#091540" stroke-opacity="0.11" stroke-width="2" />
+
+            <!-- 6. Floating Right Dot -->
+            <circle cx="1345" cy="477" r="9" fill="#091540" fill-opacity="0.08" />
+
+            <!-- 7. Minimal Dot Matrix (4x3) behind bottom-left of Login Card -->
+            <g fill="#091540" fill-opacity="0.13">
+                <circle cx="844" cy="650" r="2" />
+                <circle cx="860" cy="650" r="2" />
+                <circle cx="876" cy="650" r="2" />
+                <circle cx="892" cy="650" r="2" />
+                <circle cx="844" cy="666" r="2" />
+                <circle cx="860" cy="666" r="2" />
+                <circle cx="876" cy="666" r="2" />
+                <circle cx="892" cy="666" r="2" />
+                <circle cx="844" cy="682" r="2" />
+                <circle cx="860" cy="682" r="2" />
+                <circle cx="876" cy="682" r="2" />
+                <circle cx="892" cy="682" r="2" />
+            </g>
+        </svg>
+
+        <!-- Login Card Stage -->
+        <div class="login-card-stage">
+            <section class="wave-login-card" aria-label="Form Login SMT">
+                <header class="card-header">
+                    <img class="smt-logo" src="/img/SMT.png" alt="SMT Logo" width="195" height="62">
+                    <p class="card-subtitle">PLEASE <strong>LOGIN</strong> TO CONTINUE</p>
+                </header>
+
+                <div id="errorMessage" class="form-feedback" role="alert" style="display: none;"></div>
+
+                <form id="loginForm" class="wave-login-form">
+                    <div class="fields-stack">
+                        <div class="input-group">
+                            <label class="sr-only" for="username">Username</label>
+                            <input
+                                class="underline-input"
+                                id="username"
+                                name="username"
+                                type="text"
+                                placeholder="Username"
+                                autocomplete="username"
+                                required
+                                autofocus
+                            >
+                        </div>
+
+                        <div class="input-group">
+                            <label class="sr-only" for="password">Password</label>
+                            <input
+                                class="underline-input"
+                                id="password"
+                                name="password"
+                                type="password"
+                                placeholder="Password"
+                                autocomplete="current-password"
+                                required
+                            >
+                            <button
+                                class="toggle-password-btn"
+                                type="button"
+                                id="togglePassword"
+                                aria-label="Tampilkan password"
+                                title="Hide / Show Password"
+                            >
+                                <!-- Eye Icon (Hidden password state) -->
+                                <svg class="eye-icon" viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                    <path d="M10 3C5.8 3 2.3 5.6 1 9.2C2.3 12.8 5.8 15.4 10 15.4C14.2 15.4 17.7 12.8 19 9.2C17.7 5.6 14.2 3 10 3ZM10 13.2C7.8 13.2 6 11.4 6 9.2C6 7 7.8 5.2 10 5.2C12.2 5.2 14 7 14 9.2C14 11.4 12.2 13.2 10 13.2ZM10 6.8C8.7 6.8 7.6 7.9 7.6 9.2C7.6 10.5 8.7 11.6 10 11.6C11.3 11.6 12.4 10.5 12.4 9.2C12.4 7.9 11.3 6.8 10 6.8Z" fill="#141414" />
+                                    <line x1="3" y1="2" x2="17" y2="15" stroke="#141414" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                                <!-- Eye Visible Icon -->
+                                <svg class="eye-off-icon" viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="display: none;">
+                                    <path d="M10 3C5.8 3 2.3 5.6 1 9.2C2.3 12.8 5.8 15.4 10 15.4C14.2 15.4 17.7 12.8 19 9.2C17.7 5.6 14.2 3 10 3ZM10 13.2C7.8 13.2 6 11.4 6 9.2C6 7 7.8 5.2 10 5.2C12.2 5.2 14 7 14 9.2C14 11.4 12.2 13.2 10 13.2ZM10 6.8C8.7 6.8 7.6 7.9 7.6 9.2C7.6 10.5 8.7 11.6 10 11.6C11.3 11.6 12.4 10.5 12.4 9.2C12.4 7.9 11.3 6.8 10 6.8Z" fill="#141414" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card-actions">
+                        <button id="signInBtn" class="btn-sign-in" type="submit">SIGN IN</button>
+                        <p class="signup-prompt">SMT Material Control &bull; v1.0.0</p>
+                    </div>
+                </form>
+            </section>
         </div>
-    </div>
+    </main>
 
     <!-- Scripts -->
     <script src="/js/auth.js"></script>

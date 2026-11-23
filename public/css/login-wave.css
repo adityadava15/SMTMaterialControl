@@ -1,0 +1,356 @@
+:root {
+  --bg-canvas: #F9F9F9;
+  --card-bg: #FFFFFF;
+  --primary-navy: #091540;
+  --primary-navy-hover: #102263;
+  --primary-navy-active: #060E2B;
+  --text-dark: #1E1E1E;
+  --text-body: #5A5A5A;
+  --text-muted: #7A7A7A;
+  --line-border: #9E9E9E;
+  --line-focus: #091540;
+  --checkbox-dark: #141414;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  font-family: 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg-canvas);
+  color: var(--text-dark);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Main 1440x810 proportional stage */
+.wave-login-screen {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  background-color: var(--bg-canvas);
+  overflow: hidden;
+}
+
+/* Left Organic Wavy Photo Background */
+.wave-landscape-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 51.8vw;
+  max-width: 780px;
+  min-width: 480px;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.wave-landscape-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Decorative Dot near lower curve of the wave */
+.decorative-wave-dot {
+  position: absolute;
+  left: 42.9vw;
+  top: 68.9vh;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: rgba(9, 21, 64, 0.18);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Abstract Background Accents behind Login Card */
+.abstract-accents-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Right Area holding the Login Card */
+.login-card-stage {
+  position: relative;
+  z-index: 3;
+  width: 48.2%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 6vw 40px 2vw;
+}
+
+/* Login Card with 0.6s ease-out Fade-In entrance animation */
+@keyframes loginCardFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.wave-login-card {
+  width: 412px;
+  max-width: 100%;
+  min-height: 500px;
+  background-color: var(--card-bg);
+  border-radius: 36px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.04);
+  padding: 52px 56px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 42px;
+  animation: loginCardFadeIn 0.6s cubic-bezier(0, 0, 0.58, 1) both;
+}
+
+/* Card Header: Centered SMT Logo + Subtitle */
+.card-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+}
+
+.smt-logo {
+  width: 195px;
+  height: 62px;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+}
+
+.card-subtitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: var(--text-body);
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+
+.card-subtitle strong {
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+/* Alert message */
+.form-feedback {
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  background-color: rgba(214, 10, 71, 0.08);
+  border: 1px solid rgba(214, 10, 71, 0.25);
+  color: #A80736;
+  margin-bottom: -12px;
+}
+
+.form-feedback.is-info {
+  background-color: rgba(9, 21, 64, 0.06);
+  border-color: rgba(9, 21, 64, 0.2);
+  color: var(--primary-navy);
+}
+
+/* Form Fields */
+.wave-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 38px;
+}
+
+.fields-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.input-group {
+  position: relative;
+  width: 100%;
+}
+
+.underline-input {
+  width: 100%;
+  height: 38px;
+  padding: 6px 28px 10px 0;
+  border: none;
+  border-bottom: 1px solid var(--line-border);
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-dark);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.underline-input::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.underline-input:focus {
+  border-bottom-color: var(--line-focus);
+  box-shadow: 0 1px 0 0 var(--line-focus);
+}
+
+/* Hide / Show Password Button */
+.toggle-password-btn {
+  position: absolute;
+  right: 0;
+  top: 4px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--checkbox-dark);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.85;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.toggle-password-btn:hover {
+  opacity: 1;
+}
+
+.toggle-password-btn svg {
+  width: 17px;
+  height: 17px;
+  display: block;
+}
+
+/* Actions: Pill Sign In Button & Footer Note */
+.card-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  margin-top: 6px;
+}
+
+.btn-sign-in {
+  width: 236px;
+  max-width: 100%;
+  height: 46px;
+  border: none;
+  border-radius: 23px;
+  background-color: var(--primary-navy);
+  color: #FFFFFF;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(9, 21, 64, 0.18);
+  transition: background-color 0.2s ease, transform 0.12s ease, box-shadow 0.2s ease;
+}
+
+.btn-sign-in:hover:not(:disabled) {
+  background-color: var(--primary-navy-hover);
+  box-shadow: 0 8px 22px rgba(9, 21, 64, 0.25);
+}
+
+.btn-sign-in:active:not(:disabled) {
+  background-color: var(--primary-navy-active);
+  transform: translateY(1px);
+}
+
+.btn-sign-in:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.signup-prompt {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1024px) {
+  .wave-landscape-container {
+    width: 45vw;
+    min-width: 340px;
+    opacity: 0.92;
+  }
+
+  .decorative-wave-dot {
+    left: 38vw;
+  }
+
+  .login-card-stage {
+    width: 55%;
+    padding: 32px 4vw;
+  }
+}
+
+@media (max-width: 768px) {
+  .wave-login-screen {
+    justify-content: center;
+  }
+
+  .wave-landscape-container {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    height: 42vh;
+    opacity: 0.25;
+  }
+
+  .decorative-wave-dot {
+    display: none;
+  }
+
+  .login-card-stage {
+    width: 100%;
+    padding: 28px 18px;
+  }
+
+  .wave-login-card {
+    padding: 44px 32px 40px;
+    min-height: auto;
+  }
+}

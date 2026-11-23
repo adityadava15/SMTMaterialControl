@@ -194,35 +194,47 @@ router.post('/', isAuthenticated, canAccessMaterials, async (req, res) => {
             return res.status(400).json({ error: 'Material ID and valid quantity are required' });
         }
 
-        // Validate duplicate RID: RID cannot already exist in active stock
-        if (normalizedRid) {
-            const [existingActiveRoll] = await db.query(
+        // Run independent lookups in parallel (exact PK lookup on material_catalog avoids full table scan)
+        const ridCheckPromise = normalizedRid
+            ? db.query(
                 `SELECT r.id, r.material_id, m.name AS material_name, r.quantity, r.created_at
                  FROM material_rolls r
                  LEFT JOIN materials m ON r.material_id = m.id
                  WHERE r.rid = ? AND r.status = 'active'
                  LIMIT 1`,
                 [normalizedRid]
-            );
+            )
+            : Promise.resolve([[]]);
 
-            if (existingActiveRoll.length > 0) {
-                const er = existingActiveRoll[0];
-                return res.status(400).json({
-                    success: false,
-                    error: `Roll dengan RID "${normalizedRid}" sudah ada di dalam stok (Material: ${er.material_id} - ${er.material_name || ''}). Tidak dapat di-input ulang!`
-                });
-            }
+        const [
+            [existingActiveRoll],
+            [existingRows],
+            [exactCatalogRows]
+        ] = await Promise.all([
+            ridCheckPromise,
+            db.query('SELECT id, name, quantity FROM materials WHERE id = ? LIMIT 1', [normalizedId]),
+            db.query('SELECT specification FROM material_catalog WHERE material_id = ? LIMIT 1', [normalizedId])
+        ]);
+
+        if (existingActiveRoll.length > 0) {
+            const er = existingActiveRoll[0];
+            return res.status(400).json({
+                success: false,
+                error: `Roll dengan RID "${normalizedRid}" sudah ada di dalam stok (Material: ${er.material_id} - ${er.material_name || ''}). Tidak dapat di-input ulang!`
+            });
         }
 
-        // Check existing material
-        const [existingRows] = await db.query('SELECT id, name, quantity FROM materials WHERE id = ?', [normalizedId]);
         const existingMaterial = existingRows[0] || null;
+        let catalogRows = exactCatalogRows;
 
-        // Name source: master catalog first, fallback existing material name
-        const [catalogRows] = await db.query(
-            'SELECT specification FROM material_catalog WHERE LOWER(TRIM(material_id)) = LOWER(TRIM(?))',
-            [normalizedId]
-        );
+        // Fallback to case-insensitive/trimmed match only if exact PK match missed
+        if (catalogRows.length === 0) {
+            [catalogRows] = await db.query(
+                'SELECT specification FROM material_catalog WHERE LOWER(TRIM(material_id)) = LOWER(TRIM(?)) LIMIT 1',
+                [normalizedId]
+            );
+        }
+
         const catalogName = catalogRows[0] ? (catalogRows[0].specification || catalogRows[0].material_name) : null;
 
         if (!catalogName && !existingMaterial) {
@@ -236,15 +248,16 @@ router.post('/', isAuthenticated, canAccessMaterials, async (req, res) => {
         if (existingMaterial) {
             const newQuantity = existingMaterial.quantity + parsedQty;
 
-            await db.query(
-                'UPDATE materials SET quantity = ?, name = ? WHERE id = ?',
-                [newQuantity, finalName, normalizedId]
-            );
-
-            const [txResult] = await db.query(
-                'INSERT INTO transactions (material_id, material_name, transaction_type, quantity, rid, user_id) VALUES (?, ?, ?, ?, ?, ?)',
-                [normalizedId, finalName, 'INPUT', parsedQty, normalizedRid, req.session.userId]
-            );
+            const [, [txResult]] = await Promise.all([
+                db.query(
+                    'UPDATE materials SET quantity = quantity + ?, name = ? WHERE id = ?',
+                    [parsedQty, finalName, normalizedId]
+                ),
+                db.query(
+                    'INSERT INTO transactions (material_id, material_name, transaction_type, quantity, rid, user_id) VALUES (?, ?, ?, ?, ?, ?)',
+                    [normalizedId, finalName, 'INPUT', parsedQty, normalizedRid, req.session.userId]
+                )
+            ]);
 
             const inputTxId = txResult.insertId;
 
