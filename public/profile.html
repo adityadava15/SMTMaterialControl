@@ -38,92 +38,30 @@
 
     <!-- Global Styles & Toast -->
     <link rel="stylesheet" href="/css/styles.css">
+
+    <!-- Curved Animated Sidebar Styles & Script -->
+    <link rel="stylesheet" href="/css/sidebar-curved.css">
+    <script src="/js/sidebar-curved.js" defer></script>
 </head>
 
 <body class="h-full bg-slate-50 text-slate-900 antialiased flex flex-col">
 
     <div class="flex-1 flex overflow-hidden">
-        <!-- Sidebar Navigation (Shadcn Style - Midnight Navy) -->
-        <aside id="sidebar" class="w-64 border-r border-white/10 bg-[#091540] text-white flex flex-col shrink-0 transition-all duration-300 z-40 hidden md:flex">
-            <!-- Sidebar Header -->
-            <div class="h-16 border-b border-white/10 flex items-center px-6 gap-3">
-                <img src="/img/SMT.png" alt="SMT Logo" class="h-8 w-auto object-contain">
+        <!-- Curved Animated Sidebar (SMT Midnight Navy #091540) -->
+        <aside id="curvedSidebar" class="curved-sidebar" aria-label="Navigasi Utama">
+            <div class="sidebar-brand">
+                <img src="/img/SMT.png" alt="SMT Logo" class="sidebar-brand-logo">
                 <div>
-                    <h2 class="text-sm font-bold tracking-tight text-white leading-tight">SMT Material</h2>
-                    <p class="text-[11px] text-slate-400 font-medium leading-none">Control System</p>
+                    <h2 class="sidebar-brand-title">SMT Material</h2>
+                    <p class="sidebar-brand-subtitle">Control System</p>
                 </div>
             </div>
 
-            <!-- Navigation Links -->
-            <div class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-                <div class="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Menu Utama</div>
+            <nav id="sidebarNav" class="sidebar-nav" aria-label="Menu Sidebar"></nav>
 
-                <!-- Dashboard -->
-                <a href="/dashboard.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
-                    <i data-lucide="layout-dashboard" class="w-4 h-4 text-slate-400"></i>
-                    <span>Dashboard</span>
-                </a>
-
-                <!-- Material Input Scan -->
-                <a href="/material-input-scan.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
-                    <i data-lucide="scan-barcode" class="w-4 h-4 text-slate-400"></i>
-                    <span>Material Input (Scan)</span>
-                </a>
-
-                <!-- Manual Input -->
-                <a href="/material-input.html" id="inputLink" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
-                    <i data-lucide="pen-tool" class="w-4 h-4 text-slate-400"></i>
-                    <span>Manual Material Input</span>
-                </a>
-
-                <!-- Output Dropdown -->
-                <div class="pt-2">
-                    <div class="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Material Output</div>
-                    <a href="/material-output.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
-                        <i data-lucide="package-minus" class="w-4 h-4 text-slate-400"></i>
-                        <span>Output Stok</span>
-                    </a>
-                    <a href="/material-output-machine.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
-                        <i data-lucide="cpu" class="w-4 h-4 text-slate-400"></i>
-                        <span>Output Mesin</span>
-                    </a>
-                </div>
-
-                <div class="pt-2">
-                    <div class="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Laporan & Pengaturan</div>
-                    <a href="/records.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
-                        <i data-lucide="clipboard-list" class="w-4 h-4 text-slate-400"></i>
-                        <span>Records</span>
-                    </a>
-                    <!-- Master Data Dropdown in Sidebar -->
-                    <div>
-                        <button type="button" onclick="toggleSidebarMasterDropdown()" id="navMasterToggle" class="w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition cursor-pointer">
-                            <div class="flex items-center gap-3">
-                                <i data-lucide="file-spreadsheet" class="w-4 h-4 text-slate-400"></i>
-                                <span>Master Data</span>
-                            </div>
-                            <i data-lucide="chevron-down" id="navMasterArrow" class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200"></i>
-                        </button>
-                        <div id="navMasterSubmenu" class="hidden pl-4 pr-1 py-1 space-y-1 mt-1">
-                            <a href="/master-materials.html" id="navSubMaster" class="flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
-                                <i data-lucide="box" class="w-3.5 h-3.5 text-slate-400"></i>
-                                <span>Master</span>
-                            </a>
-                            <a href="/master-materials.html?category=meter_quantity" id="navSubMeterQuantity" class="flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
-                                <i data-lucide="gauge" class="w-3.5 h-3.5 text-slate-400"></i>
-                                <span>Meter Komponen Quantity</span>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Sidebar Footer -->
-            <div class="p-3 border-t border-white/10 bg-[#060e2a]/50 flex items-center justify-between text-xs text-slate-400">
-                <span class="text-[11px] font-medium text-slate-400">v1.0.0 &bull; SMT Control</span>
-                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    Online
-                </span>
+            <div class="sidebar-footer">
+                <span>v1.0.0 &bull; SMT Control</span>
+                <span class="sidebar-online-pill">Online</span>
             </div>
         </aside>
 

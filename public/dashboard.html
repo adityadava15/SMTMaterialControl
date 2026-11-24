@@ -70,6 +70,14 @@
     <!-- Lucide Icons (Offline) -->
     <script src="/libs/lucide.min.js"></script>
 
+    <!-- Overview StatsBand Styles & Script -->
+    <link rel="stylesheet" href="/css/stats-band.css">
+    <script src="/js/stats-band.js" defer></script>
+
+    <!-- Curved Animated Sidebar Styles & Script -->
+    <link rel="stylesheet" href="/css/sidebar-curved.css">
+    <script src="/js/sidebar-curved.js" defer></script>
+
     <!-- Shadcn CSS Variables Design Tokens -->
     <style>
         :root {
@@ -161,87 +169,21 @@
 <body class="h-full bg-slate-50 text-slate-900 antialiased flex flex-col">
 
     <div class="flex-1 flex overflow-hidden">
-        <!-- Sidebar Navigation (Shadcn Style - Midnight Navy) -->
-        <aside id="sidebar" class="w-64 border-r border-white/10 bg-[#091540] text-white flex flex-col shrink-0 transition-all duration-300 z-40 hidden md:flex">
-            <!-- Sidebar Header -->
-            <div class="h-16 border-b border-white/10 flex items-center px-6 gap-3">
-                <img src="/img/SMT.png" alt="SMT Logo" class="h-8 w-auto object-contain">
+        <!-- Curved Animated Sidebar (SMT Midnight Navy #091540) -->
+        <aside id="curvedSidebar" class="curved-sidebar" aria-label="Navigasi Utama">
+            <div class="sidebar-brand">
+                <img src="/img/SMT.png" alt="SMT Logo" class="sidebar-brand-logo">
                 <div>
-                    <h2 class="text-sm font-bold tracking-tight text-white leading-tight">SMT Material</h2>
-                    <p class="text-[11px] text-slate-400 font-medium leading-none">Control System</p>
+                    <h2 class="sidebar-brand-title">SMT Material</h2>
+                    <p class="sidebar-brand-subtitle">Control System</p>
                 </div>
             </div>
 
-            <!-- Navigation Links -->
-            <div class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-                <div class="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Menu Utama</div>
+            <nav id="sidebarNav" class="sidebar-nav" aria-label="Menu Sidebar"></nav>
 
-                <!-- Dashboard (Active) -->
-                <a href="/dashboard.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg bg-[#142563] text-white transition shadow-sm">
-                    <i data-lucide="layout-dashboard" class="w-4 h-4 text-white"></i>
-                    <span>Dashboard</span>
-                </a>
-
-                <!-- Material Input Scan -->
-                <a href="/material-input-scan.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
-                    <i data-lucide="scan-barcode" class="w-4 h-4 text-slate-400"></i>
-                    <span>Material Input (Scan)</span>
-                </a>
-
-                <!-- Manual Input -->
-                <a href="/material-input.html" id="inputLink" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
-                    <i data-lucide="pen-tool" class="w-4 h-4 text-slate-400"></i>
-                    <span>Manual Material Input</span>
-                </a>
-
-                <!-- Output Dropdown -->
-                <div class="pt-2">
-                    <div class="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Material Output</div>
-                    <a href="/material-output.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
-                        <i data-lucide="package-minus" class="w-4 h-4 text-slate-400"></i>
-                        <span>Output Stok</span>
-                    </a>
-                    <a href="/material-output-machine.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
-                        <i data-lucide="cpu" class="w-4 h-4 text-slate-400"></i>
-                        <span>Output Mesin</span>
-                    </a>
-                </div>
-
-                <div class="pt-2">
-                    <div class="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Laporan & Pengaturan</div>
-                    <a href="/records.html" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
-                        <i data-lucide="clipboard-list" class="w-4 h-4 text-slate-400"></i>
-                        <span>Records</span>
-                    </a>
-                    <!-- Master Data Dropdown in Sidebar -->
-                    <div>
-                        <button type="button" onclick="toggleSidebarMasterDropdown()" id="navMasterToggle" class="w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition cursor-pointer">
-                            <div class="flex items-center gap-3">
-                                <i data-lucide="file-spreadsheet" class="w-4 h-4 text-slate-400"></i>
-                                <span>Master Data</span>
-                            </div>
-                            <i data-lucide="chevron-down" id="navMasterArrow" class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200"></i>
-                        </button>
-                        <div id="navMasterSubmenu" class="hidden pl-4 pr-1 py-1 space-y-1 mt-1">
-                            <a href="/master-materials.html" id="navSubMaster" class="flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
-                                <i data-lucide="box" class="w-3.5 h-3.5 text-slate-400"></i>
-                                <span>Master</span>
-                            </a>
-                            <a href="/master-materials.html?category=meter_quantity" id="navSubMeterQuantity" class="flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
-                                <i data-lucide="gauge" class="w-3.5 h-3.5 text-slate-400"></i>
-                                <span>Meter Komponen Quantity</span>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Sidebar Footer -->
-            <div class="p-3 border-t border-white/10 bg-[#060e2a]/50 flex items-center justify-between text-xs text-slate-400">
-                <span class="text-[11px] font-medium text-slate-400">v1.0.0 &bull; SMT Control</span>
-                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    Online
-                </span>
+            <div class="sidebar-footer">
+                <span>v1.0.0 &bull; SMT Control</span>
+                <span class="sidebar-online-pill">Online</span>
             </div>
         </aside>
 
@@ -313,64 +255,8 @@
                     </div>
                 </div>
 
-                <!-- 4 Stats Cards (Shadcn Metric Card Style) -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <!-- Total Materials -->
-                    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs hover:shadow transition">
-                        <div class="flex items-center justify-between space-y-0 pb-2">
-                            <span class="text-xs font-medium uppercase tracking-wider text-slate-500">Total Materials</span>
-                            <div class="p-2 rounded-lg bg-blue-50 text-[#091540]">
-                                <i data-lucide="boxes" class="w-4 h-4"></i>
-                            </div>
-                        </div>
-                        <div class="text-2xl font-bold tracking-tight text-slate-900 mt-1" id="totalMaterials">-</div>
-                        <p class="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
-                            <span class="text-[#091540] font-medium">Jenis item</span> terdaftar di inventory
-                        </p>
-                    </div>
-
-                    <!-- Total Quantity -->
-                    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs hover:shadow transition">
-                        <div class="flex items-center justify-between space-y-0 pb-2">
-                            <span class="text-xs font-medium uppercase tracking-wider text-slate-500">Total Quantity</span>
-                            <div class="p-2 rounded-lg bg-emerald-50 text-emerald-600">
-                                <i data-lucide="layers" class="w-4 h-4"></i>
-                            </div>
-                        </div>
-                        <div class="text-2xl font-bold tracking-tight text-slate-900 mt-1" id="totalQuantity">-</div>
-                        <p class="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
-                            <span class="text-emerald-600 font-medium">Pcs</span> total stok komponen
-                        </p>
-                    </div>
-
-                    <!-- Input Hari Ini -->
-                    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs hover:shadow transition">
-                        <div class="flex items-center justify-between space-y-0 pb-2">
-                            <span class="text-xs font-medium uppercase tracking-wider text-slate-500">Input Hari Ini</span>
-                            <div class="p-2 rounded-lg bg-amber-50 text-amber-600">
-                                <i data-lucide="arrow-down-left" class="w-4 h-4"></i>
-                            </div>
-                        </div>
-                        <div class="text-2xl font-bold tracking-tight text-slate-900 mt-1" id="inputToday">-</div>
-                        <p class="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
-                            <span class="text-amber-600 font-medium">Pcs</span> material masuk hari ini
-                        </p>
-                    </div>
-
-                    <!-- Output Hari Ini -->
-                    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs hover:shadow transition">
-                        <div class="flex items-center justify-between space-y-0 pb-2">
-                            <span class="text-xs font-medium uppercase tracking-wider text-slate-500">Output Hari Ini</span>
-                            <div class="p-2 rounded-lg bg-rose-50 text-rose-600">
-                                <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
-                            </div>
-                        </div>
-                        <div class="text-2xl font-bold tracking-tight text-slate-900 mt-1" id="outputToday">-</div>
-                        <p class="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
-                            <span class="text-rose-600 font-medium">Pcs</span> material keluar hari ini
-                        </p>
-                    </div>
-                </div>
+                <!-- Overview StatsBand (Divided Hairline Grid) -->
+                <section id="statsBand" class="stats-band" data-managed="api" aria-label="Ringkasan statistik inventori SMT"></section>
 
                 <!-- Material Inventory Table (Shadcn Table Style) -->
                 <div class="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
@@ -585,33 +471,6 @@
             }
         }
 
-        // Toggle Sidebar (Desktop collapsible & Mobile drawer)
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const backdrop = document.getElementById('mobileBackdrop');
-            const isMobile = window.innerWidth < 768;
-
-            if (isMobile) {
-                if (sidebar.classList.contains('hidden')) {
-                    sidebar.classList.remove('hidden');
-                    sidebar.classList.add('fixed', 'inset-y-0', 'left-0', 'z-50', 'w-72', 'shadow-2xl');
-                    backdrop.classList.remove('hidden');
-                } else {
-                    sidebar.classList.add('hidden');
-                    sidebar.classList.remove('fixed', 'inset-y-0', 'left-0', 'z-50', 'w-72', 'shadow-2xl');
-                    backdrop.classList.add('hidden');
-                }
-            } else {
-                if (sidebar.classList.contains('md:hidden')) {
-                    sidebar.classList.remove('md:hidden');
-                    sidebar.classList.add('md:flex');
-                } else {
-                    sidebar.classList.add('md:hidden');
-                    sidebar.classList.remove('md:flex');
-                }
-            }
-        }
-
         // User dropdown toggle
         function toggleUserDropdown() {
             const dropdown = document.getElementById('userDropdownContent');
@@ -690,17 +549,33 @@
             }
         }
 
+        let statsBandConfigCache = null;
+
+        async function getStatsBandConfig() {
+            if (statsBandConfigCache) return statsBandConfigCache;
+            const res = await fetch('/data/stats-data.json', { cache: 'no-store' });
+            if (!res.ok) throw new Error('Failed to load /data/stats-data.json');
+            statsBandConfigCache = await res.json();
+            return statsBandConfigCache;
+        }
+
         // Load stats
         async function loadDashboardStats() {
             try {
-                const response = await fetch('/api/dashboard/stats');
+                const [response, bandConfig] = await Promise.all([
+                    fetch('/api/dashboard/stats'),
+                    getStatsBandConfig()
+                ]);
                 const data = await response.json();
 
                 if (data.success) {
-                    document.getElementById('totalMaterials').textContent = formatNumber(data.stats.totalMaterials);
-                    document.getElementById('totalQuantity').textContent = formatNumber(data.stats.totalQuantity);
-                    document.getElementById('inputToday').textContent = formatNumber(data.stats.inputToday);
-                    document.getElementById('outputToday').textContent = formatNumber(data.stats.outputToday);
+                    const mount = document.getElementById('statsBand');
+                    if (mount && !window.dashboardStatsBand && window.StatsBandController) {
+                        window.dashboardStatsBand = new window.StatsBandController(mount);
+                    }
+                    if (window.dashboardStatsBand) {
+                        window.dashboardStatsBand.updateFromApi(data, bandConfig);
+                    }
                 }
             } catch (error) {
                 console.error('Error loading stats:', error);

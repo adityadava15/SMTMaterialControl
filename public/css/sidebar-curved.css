@@ -1,0 +1,354 @@
+:root {
+  --sb-nav-bg: #091540;
+  --sb-nav-bg-deep: #060e2a;
+  --sb-content-bg: #f8fafc;
+  --sb-active-text: #091540;
+  --sb-inactive-text: #cbd5e1;
+  --sb-inactive-icon: #94a3b8;
+  --sb-group-label: #94a3b8;
+  --sb-curve-size: 22px;
+  --sb-ease-curve: cubic-bezier(0.22, 1, 0.36, 1);
+  --sb-ease-spring: cubic-bezier(0.34, 1.26, 0.64, 1);
+}
+
+/* =========================================================
+   Curved Active Indicator Sidebar (SMT Midnight Navy)
+   ========================================================= */
+.curved-sidebar {
+  width: 264px;
+  flex-shrink: 0;
+  background-color: var(--sb-nav-bg);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 40;
+  transition: width 0.28s var(--sb-ease-curve), transform 0.28s var(--sb-ease-curve);
+  user-select: none;
+}
+
+.curved-sidebar.is-collapsed {
+  width: 0;
+  overflow: hidden;
+}
+
+.sidebar-brand {
+  height: 64px;
+  padding: 0 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.sidebar-brand-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.sidebar-brand-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.sidebar-brand-subtitle {
+  margin: 2px 0 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+  line-height: 1;
+}
+
+/* Scrollable nav list — right padding MUST stay 0 so curved pill merges cleanly with content */
+.sidebar-nav {
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 18px 0 24px 12px;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+}
+
+/* =========================================================
+   Sliding Curved Active Selector (Inverted Concave Radius)
+   ========================================================= */
+.sidebar-active-indicator {
+  position: absolute;
+  left: 12px;
+  right: 0;
+  top: 0;
+  height: 42px;
+  background-color: var(--sb-content-bg);
+  border-top-left-radius: 9999px;
+  border-bottom-left-radius: 9999px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transform: translate3d(0, 0, 0);
+  transition:
+    transform 0.45s var(--sb-ease-spring),
+    height 0.3s var(--sb-ease-curve),
+    opacity 0.2s ease;
+  will-change: transform, height;
+}
+
+.sidebar-active-indicator.is-ready {
+  opacity: 1;
+}
+
+/* Top & Bottom Inverted Concave Curves */
+.sidebar-active-indicator::before,
+.sidebar-active-indicator::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  width: var(--sb-curve-size);
+  height: var(--sb-curve-size);
+  pointer-events: none;
+}
+
+.sidebar-active-indicator::before {
+  top: calc(var(--sb-curve-size) * -1);
+  background: radial-gradient(
+    circle at 0 0,
+    transparent var(--sb-curve-size),
+    var(--sb-content-bg) calc(var(--sb-curve-size) + 0.6px)
+  );
+}
+
+.sidebar-active-indicator::after {
+  bottom: calc(var(--sb-curve-size) * -1);
+  background: radial-gradient(
+    circle at 0 100%,
+    transparent var(--sb-curve-size),
+    var(--sb-content-bg) calc(var(--sb-curve-size) + 0.6px)
+  );
+}
+
+/* Menu Groups */
+.sidebar-group {
+  position: relative;
+  z-index: 1;
+}
+
+.sidebar-group + .sidebar-group {
+  margin-top: 14px;
+}
+
+.sidebar-group-label {
+  padding: 0 16px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sb-group-label);
+}
+
+.sidebar-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Individual Nav Item */
+.sidebar-item {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 18px 10px 16px;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-decoration: none;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--sb-inactive-text);
+  cursor: pointer;
+  border-top-left-radius: 9999px;
+  border-bottom-left-radius: 9999px;
+  transition: color 0.25s ease, transform 0.18s var(--sb-ease-curve);
+  text-align: left;
+}
+
+.sidebar-item:active {
+  transform: scale(0.985);
+}
+
+.sidebar-item-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.sidebar-item-icon {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  color: var(--sb-inactive-icon);
+  transition: color 0.25s ease, transform 0.28s var(--sb-ease-curve);
+}
+
+.sidebar-item-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Subtle hover glow on inactive items */
+.sidebar-item:not(.is-active):hover {
+  color: #ffffff;
+}
+
+.sidebar-item:not(.is-active):hover .sidebar-item-icon {
+  color: #ffffff;
+  transform: translateX(2px) scale(1.08);
+}
+
+.sidebar-item:not(.is-active):hover::before {
+  opacity: 1;
+}
+
+.sidebar-item:not(.is-active)::before {
+  content: '';
+  position: absolute;
+  inset: 2px 12px 2px 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  opacity: 0;
+  z-index: -1;
+  transition: opacity 0.2s ease;
+}
+
+/* Active state colors (sitting on top of sliding slate-50 pill) */
+.sidebar-item.is-active {
+  color: var(--sb-active-text);
+  font-weight: 600;
+}
+
+.sidebar-item.is-active .sidebar-item-icon {
+  color: var(--sb-active-text);
+  transform: scale(1.06);
+}
+
+/* Accordion Submenu (Master Data) */
+.sidebar-chevron {
+  width: 15px;
+  height: 15px;
+  color: var(--sb-inactive-icon);
+  flex-shrink: 0;
+  transition: transform 0.28s var(--sb-ease-curve), color 0.2s ease;
+}
+
+.sidebar-item.is-expanded .sidebar-chevron {
+  transform: rotate(180deg);
+}
+
+.sidebar-item.is-active .sidebar-chevron {
+  color: var(--sb-active-text);
+}
+
+.sidebar-submenu-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.3s var(--sb-ease-curve), opacity 0.22s ease;
+}
+
+.sidebar-submenu-wrap.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.sidebar-submenu-inner {
+  overflow: hidden;
+  padding-left: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-item--sub {
+  min-height: 36px;
+  padding: 8px 18px 8px 14px;
+  font-size: 12.5px;
+}
+
+.sidebar-item--sub .sidebar-item-icon {
+  width: 15px;
+  height: 15px;
+}
+
+/* Footer */
+.sidebar-footer {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(6, 14, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.sidebar-online-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* Mobile Responsive Drawer */
+@media (max-width: 767.98px) {
+  .curved-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.45);
+  }
+  .curved-sidebar.is-mobile-open {
+    transform: translateX(0);
+    width: 264px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .curved-sidebar,
+  .sidebar-active-indicator,
+  .sidebar-item,
+  .sidebar-item-icon,
+  .sidebar-submenu-wrap,
+  .sidebar-chevron {
+    transition: none !important;
+  }
+}

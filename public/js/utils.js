@@ -47,10 +47,25 @@ function showToast(message, type = 'success', duration = 3500) {
 
 // Toggle Sidebar (Desktop collapsible & Mobile drawer)
 function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
+    const curvedSidebar = document.getElementById('curvedSidebar');
     const backdrop = document.getElementById('mobileBackdrop');
-    if (!sidebar) return;
     const isMobile = window.innerWidth < 768;
+
+    if (curvedSidebar) {
+        if (isMobile) {
+            const open = curvedSidebar.classList.toggle('is-mobile-open');
+            if (backdrop) backdrop.classList.toggle('hidden', !open);
+        } else {
+            curvedSidebar.classList.toggle('is-collapsed');
+        }
+        if (window.smtSidebar && typeof window.smtSidebar.repositionIndicator === 'function') {
+            setTimeout(() => window.smtSidebar.repositionIndicator(false), 300);
+        }
+        return;
+    }
+
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
 
     if (isMobile) {
         if (sidebar.classList.contains('hidden')) {
@@ -74,8 +89,17 @@ function toggleSidebar() {
 }
 
 window.addEventListener('resize', () => {
-    const sidebar = document.getElementById('sidebar');
+    const curvedSidebar = document.getElementById('curvedSidebar');
     const backdrop = document.getElementById('mobileBackdrop');
+    if (curvedSidebar) {
+        if (window.innerWidth >= 768) {
+            curvedSidebar.classList.remove('is-mobile-open');
+            if (backdrop) backdrop.classList.add('hidden');
+        }
+        return;
+    }
+
+    const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
     if (window.innerWidth >= 768) {
         sidebar.classList.remove('fixed', 'inset-y-0', 'left-0', 'z-50', 'w-72', 'shadow-2xl');

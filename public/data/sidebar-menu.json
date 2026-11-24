@@ -1,0 +1,90 @@
+{
+  "brand": {
+    "title": "SMT Material",
+    "subtitle": "Control System",
+    "logo": "/img/SMT.png",
+    "version": "v1.0.0 • SMT Control",
+    "status": "Online"
+  },
+  "theme": {
+    "sidebarBg": "#091540",
+    "sidebarBorder": "rgba(255, 255, 255, 0.1)",
+    "contentBg": "#f8fafc",
+    "activeText": "#091540",
+    "inactiveText": "#cbd5e1",
+    "groupLabel": "#94a3b8"
+  },
+  "defaultActiveId": "dashboard",
+  "groups": [
+    {
+      "label": "Menu Utama",
+      "items": [
+        {
+          "id": "dashboard",
+          "label": "Dashboard",
+          "href": "/dashboard.html",
+          "icon": "layout-dashboard"
+        },
+        {
+          "id": "material-input-scan",
+          "label": "Material Input (Scan)",
+          "href": "/material-input-scan.html",
+          "icon": "scan-barcode"
+        },
+        {
+          "id": "material-input",
+          "label": "Manual Material Input",
+          "href": "/material-input.html",
+          "icon": "pen-tool"
+        }
+      ]
+    },
+    {
+      "label": "Material Output",
+      "items": [
+        {
+          "id": "material-output",
+          "label": "Output Stok",
+          "href": "/material-output.html",
+          "icon": "package-minus"
+        },
+        {
+          "id": "material-output-machine",
+          "label": "Output Mesin",
+          "href": "/material-output-machine.html",
+          "icon": "cpu"
+        }
+      ]
+    },
+    {
+      "label": "Laporan & Pengaturan",
+      "items": [
+        {
+          "id": "records",
+          "label": "Records",
+          "href": "/records.html",
+          "icon": "clipboard-list"
+        },
+        {
+          "id": "master-data",
+          "label": "Master Data",
+          "icon": "file-spreadsheet",
+          "children": [
+            {
+              "id": "master",
+              "label": "Master",
+              "href": "/master-materials.html",
+              "icon": "box"
+            },
+            {
+              "id": "meter-quantity",
+              "label": "Meter Komponen Quantity",
+              "href": "/master-materials.html?category=meter_quantity",
+              "icon": "gauge"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

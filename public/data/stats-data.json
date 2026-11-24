@@ -1,0 +1,84 @@
+{
+  "layout": "divided",
+  "durationSeconds": 1.6,
+  "locale": "en-US",
+  "header": {
+    "title": "Overview",
+    "description": "Ringkasan inventori dan aktivitas material SMT hari ini."
+  },
+  "stats": [
+    {
+      "id": "totalMaterials",
+      "label": "TOTAL MATERIALS",
+      "value": 7,
+      "unit": "",
+      "accent": "navy",
+      "icon": "boxes",
+      "detailPrefix": "Jenis item",
+      "detail": "terdaftar di inventory",
+      "context": "Aktif di master material SMT",
+      "statusTag": "Master inventory aktif",
+      "visual": null
+    },
+    {
+      "id": "totalQuantity",
+      "label": "TOTAL QUANTITY",
+      "value": 68000,
+      "unit": "Pcs",
+      "accent": "emerald",
+      "icon": "layers",
+      "detailPrefix": "Pcs",
+      "detail": "total stok komponen",
+      "context": "Tren stok 14 hari terakhir",
+      "visual": {
+        "kind": "trend",
+        "labels": [
+          "H-13", "H-12", "H-11", "H-10", "H-9", "H-8", "H-7",
+          "H-6", "H-5", "H-4", "H-3", "H-2", "Kemarin", "Hari ini"
+        ],
+        "values": [
+          54200, 55800, 54900, 57400, 59100, 58600, 61200,
+          62800, 62100, 64500, 65900, 66200, 67400, 68000
+        ]
+      }
+    },
+    {
+      "id": "inputToday",
+      "label": "INPUT HARI INI",
+      "value": 1,
+      "unit": "Pcs",
+      "accent": "amber",
+      "icon": "arrow-down-left",
+      "detailPrefix": "Pcs",
+      "detail": "material masuk hari ini",
+      "context": "Aktivitas input 14 hari terakhir",
+      "visual": {
+        "kind": "bars",
+        "labels": [
+          "H-13", "H-12", "H-11", "H-10", "H-9", "H-8", "H-7",
+          "H-6", "H-5", "H-4", "H-3", "H-2", "Kemarin", "Hari ini"
+        ],
+        "days": [3, 5, 2, 6, 4, 8, 3, 5, 7, 4, 6, 9, 4, 1]
+      }
+    },
+    {
+      "id": "outputToday",
+      "label": "OUTPUT HARI INI",
+      "value": 0,
+      "unit": "Pcs",
+      "accent": "rose",
+      "icon": "arrow-up-right",
+      "detailPrefix": "Pcs",
+      "detail": "material keluar hari ini",
+      "context": "Aktivitas output 14 hari terakhir",
+      "visual": {
+        "kind": "bars",
+        "labels": [
+          "H-13", "H-12", "H-11", "H-10", "H-9", "H-8", "H-7",
+          "H-6", "H-5", "H-4", "H-3", "H-2", "Kemarin", "Hari ini"
+        ],
+        "days": [2, 4, 1, 3, 5, 2, 6, 3, 4, 2, 5, 3, 2, 0]
+      }
+    }
+  ]
+}
